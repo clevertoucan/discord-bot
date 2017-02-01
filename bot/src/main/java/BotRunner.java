@@ -1,3 +1,6 @@
+import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import model.ListenerImpl;
 import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
@@ -12,7 +15,7 @@ import java.util.logging.Logger;
  * Created by Joshua Owens on 1/30/2017.
  */
 public class BotRunner {
-    private static Logger logger = Logger.getLogger("bot");
+
     public static void main(String[] args){
         try{
             JDA jda = new JDABuilder(AccountType.BOT).setToken("MjM2NTgzNTQ3MDkwMTA4NDI3.C3Gliw.d9LaQFStsXF7O0MTYxlnKyUs6Dc").buildBlocking();
@@ -20,12 +23,13 @@ public class BotRunner {
 
 
         } catch(LoginException e){
-            logger.log(Level.SEVERE,e.getMessage());
+            e.printStackTrace();
         } catch(InterruptedException e){
-            logger.log(Level.SEVERE,e.getMessage());
+            e.printStackTrace();
         } catch(RateLimitedException e){
-            logger.log(Level.SEVERE,e.getMessage());
+            e.printStackTrace();
         }
 
     }
+
 }
