@@ -12,9 +12,10 @@ hs_err_pid*
 .idea/
 *.iml
 discordbot/discordbot.iml
-discordbot/src/main/resources/
 discordbot/src/test/
 discordbot/target/
-bot/src/main/resources/
 bot/src/test/
 bot/target/generated-sources/
+bot/target/classes/config.preferences
+bot/target/classes/data/
+song0.mp3

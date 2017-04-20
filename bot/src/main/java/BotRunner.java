@@ -16,26 +16,22 @@ import java.util.logging.Logger;
  * Created by Joshua Owens on 1/30/2017.
  */
 public class BotRunner {
-    public static JDA jda;
     static Logger logger = Logger.getLogger("BotLogger");
 
     public static void main(String[] args){
         try{
-            jda = new JDABuilder(AccountType.BOT).setToken("MjM2NTgzNTQ3MDkwMTA4NDI3.C3Gliw.d9LaQFStsXF7O0MTYxlnKyUs6Dc").buildBlocking();
-            ListenerImpl.targetGuild = ListenerImpl.getTargetGuild(jda);
-            logger.log(Level.INFO, ListenerImpl.targetGuild.getRolesByName("world leaders", true).get(0).getId());
-            for(Guild guild: jda.getGuilds()){
-                ListenerImpl.linkServerToRole(guild);
+            JDA jda = new JDABuilder(AccountType.BOT).setToken("MjM2NTgzNTQ3MDkwMTA4NDI3.C3Gliw.d9LaQFStsXF7O0MTYxlnKyUs6Dc").buildBlocking();
+            ListenerImpl.globalJDA = jda;
+            if(!ListenerImpl.loadData()) {
+                ListenerImpl.setTargetGuild(jda.getGuildById("302810413647527936"));
+                for (Guild guild : jda.getGuilds()) {
+                    ListenerImpl.linkServerToRole(guild);
+                }
             }
+
             jda.addEventListener(new ListenerImpl());
-
-
-        } catch(LoginException e){
-            e.printStackTrace();
-        } catch(InterruptedException e){
-            e.printStackTrace();
-        } catch(RateLimitedException e){
-            e.printStackTrace();
+        } catch(LoginException | InterruptedException | RateLimitedException e){
+            logger.log(Level.SEVERE, e.getMessage());
         }
 
     }
