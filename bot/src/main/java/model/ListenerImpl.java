@@ -298,7 +298,20 @@ public class ListenerImpl extends ListenerAdapter {
                     } else {
                         reply = reply.append("Save unsuccessful.");
                     }
-
+                    break;
+                case "!logs":
+                    File file = new File("bot.log");
+                    if(file.exists()){
+                        try {
+                            event.getChannel().sendFile(file, null).queue();
+                        } catch (IOException e) {
+                            logger.warning(e.getMessage());
+                        }
+                    }
+                    break;
+                case "!shutdown":
+                    event.getChannel().sendMessage("Bye bye!");
+                    System.exit(1);
             }
             if (!reply.toString().isEmpty()) {
                 event.getChannel().sendMessage(reply.toString()).queue();
@@ -480,6 +493,8 @@ public class ListenerImpl extends ListenerAdapter {
             ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(new Data(targetGuildID, roleMapID, associatesID));
             logger.log(Level.INFO, "Save Successful");
+            fos.close();
+            oos.close();
             return true;
         } catch (IOException e) {
             logger.log(Level.SEVERE, e.getMessage());
@@ -491,9 +506,11 @@ public class ListenerImpl extends ListenerAdapter {
         File dataFile = new File("data.ser");
         if(dataFile.exists()) {
             try {
-                FileInputStream fos = new FileInputStream("data.ser");
-                ObjectInputStream ois = new ObjectInputStream(fos);
+                FileInputStream fis = new FileInputStream("data.ser");
+                ObjectInputStream ois = new ObjectInputStream(fis);
                 Data data = (Data) ois.readObject();
+                fis.close();
+                ois.close();
                 targetGuild = globalJDA.getGuildById(data.getTargetGuildID());
                 for(Map.Entry<String, String> entry: data.getRoleMapID().entrySet()){
                     roleMap.put(globalJDA.getGuildById(entry.getKey()),
@@ -531,21 +548,21 @@ public class ListenerImpl extends ListenerAdapter {
         HashMap<String, String> roleMapID;
         HashMap<String, Set<String>> associations;
 
-        public Data(String targetGuildID, HashMap<String, String> roleMapID, HashMap<String, Set<String>> associations) {
+        private Data(String targetGuildID, HashMap<String, String> roleMapID, HashMap<String, Set<String>> associations) {
             this.targetGuildID = targetGuildID;
             this.roleMapID = roleMapID;
             this.associations = associations;
         }
 
-        public String getTargetGuildID() {
+        private String getTargetGuildID() {
             return targetGuildID;
         }
 
-        public HashMap<String, String> getRoleMapID() {
+        private HashMap<String, String> getRoleMapID() {
             return roleMapID;
         }
 
-        public HashMap<String, Set<String>> getAssociations() {
+        private HashMap<String, Set<String>> getAssociations() {
             return associations;
         }
     }
