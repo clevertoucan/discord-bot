@@ -114,7 +114,6 @@ public class ListenerImpl extends ListenerAdapter {
                     }
                     break;
                 //*********** LinkChannel *********/
-                //TODO: create channel if none exists
                 case "!linkchannel":
                     if (message.length >= 3) {
                         List<TextChannel> channels = event.getMessage().getMentionedChannels();
@@ -516,7 +515,6 @@ public class ListenerImpl extends ListenerAdapter {
                 if(channels != null){
                     botCommands = (TextChannel) channels.toArray()[0];
                 }
-                logger.log(Level.INFO, botCommands.getName());
                 logger.log(Level.INFO, "Load Successful");
                 return true;
             } catch (IOException | ClassNotFoundException e) {

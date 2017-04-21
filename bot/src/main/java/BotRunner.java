@@ -9,6 +9,8 @@ import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
 
 import javax.security.auth.login.LoginException;
+import java.io.IOException;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,9 +19,10 @@ import java.util.logging.Logger;
  */
 public class BotRunner {
     static Logger logger = Logger.getLogger("BotLogger");
-
     public static void main(String[] args){
         try{
+            logger.addHandler(new FileHandler("bot.log", true));
+
             JDA jda = new JDABuilder(AccountType.BOT).setToken("MjM2NTgzNTQ3MDkwMTA4NDI3.C3Gliw.d9LaQFStsXF7O0MTYxlnKyUs6Dc").buildBlocking();
             ListenerImpl.globalJDA = jda;
             if(!ListenerImpl.loadData()) {
@@ -30,7 +33,7 @@ public class BotRunner {
             }
 
             jda.addEventListener(new ListenerImpl());
-        } catch(LoginException | InterruptedException | RateLimitedException e){
+        } catch(LoginException | InterruptedException | RateLimitedException | IOException e){
             logger.log(Level.SEVERE, e.getMessage());
         }
 
