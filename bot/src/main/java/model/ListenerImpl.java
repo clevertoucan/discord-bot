@@ -70,6 +70,7 @@ public class ListenerImpl extends ListenerAdapter {
                 botCommands.sendMessage("@everyone " + event.getGuild().getName()
                         + " has joined the United Nations. \n" +
                         getAssociationsString(event.getGuild())).block();
+                logger.info("The server " + event.getGuild().getName() +" has added the bot to their server.");
             } catch (RateLimitedException e) {
                 logger.log(Level.SEVERE, e.getMessage());
             }
@@ -82,6 +83,7 @@ public class ListenerImpl extends ListenerAdapter {
         botCommands.sendMessage("@everyone " + event.getGuild().getName()
                 + " has left the United Nations. " +
                 "The associated role and channels have been deleted.\n");
+        logger.info("The server " + event.getGuild().getName() +" has removed the bot from their server.");
     }
 
     public void onMessageReceived(MessageReceivedEvent event) {
@@ -93,6 +95,7 @@ public class ListenerImpl extends ListenerAdapter {
                 Sets the United Nations host server. Can only be called by the current server's owner.
              */
             switch (message[0]) {
+                /*
                 case "!setunitednations":
                     if (event.getAuthor().getId().equals(targetGuild.getOwner().getUser().getId())) {
                         if (message.length > 1) {
@@ -113,6 +116,7 @@ public class ListenerImpl extends ListenerAdapter {
                         reply = reply.append("This command must be run by the server owner.\n");
                     }
                     break;
+                 */
                 //*********** LinkChannel *********/
                 case "!linkchannel":
                     if (message.length >= 3) {
@@ -165,6 +169,8 @@ public class ListenerImpl extends ListenerAdapter {
                                 for (Channel c : channels) {
                                     success = linkChannelToRole(c, role);
                                     if (success) {
+                                        logger.info("Linked Channel: " + message[1] + " to role: " + role.getName()
+                                                + " at the request of user: " + event.getAuthor().getName());
                                         reply = reply.append("Linked Channel: ").append(c.getName()).append(" to role: ")
                                                 .append(role.getName()).append("\n");
                                     }
@@ -181,8 +187,8 @@ public class ListenerImpl extends ListenerAdapter {
                                     logger.log(Level.WARNING, "Something weird happened");
                                 }
                                 if (success) {
-                                    reply = reply.append("Linked Channel: ").append(message[1]).append(" to role: ")
-                                            .append(role.getName()).append("\n");
+                                    logger.info("Linked Channel: " + message[1] + " to role: " + role.getName()
+                                            + " at the request of user: " + event.getAuthor().getName());
                                 }
                             }
                         } catch (IndexOutOfBoundsException e) {
@@ -249,6 +255,8 @@ public class ListenerImpl extends ListenerAdapter {
                                 for (Channel c : channels) {
                                     success = delinkChannelFromRole(c, role);
                                     if (success) {
+                                        logger.info("Delinked Channel: " + message[1] + " from role: " + role.getName()
+                                                + " at the request of user: " + event.getAuthor().getName());
                                         reply = reply.append("Delinked Channel: ").append(c.getName()).append(" from role: ")
                                                 .append(role.getName()).append("\n");
                                     }
@@ -265,6 +273,8 @@ public class ListenerImpl extends ListenerAdapter {
                                     logger.log(Level.WARNING, "Something weird happened");
                                 }
                                 if (success) {
+                                    logger.info("Delinked Channel: " + message[1] + " from role: " + role.getName()
+                                        + " at the request of user: " + event.getAuthor().getName());
                                     reply = reply.append("Delinked Channel: ").append(message[1]).append(" from role: ")
                                             .append(role.getName()).append("\n");
                                 }
@@ -287,12 +297,16 @@ public class ListenerImpl extends ListenerAdapter {
                     for (Guild guild : globalJDA.getGuilds()) {
                         if (!guild.equals(targetGuild)) {
                             reply = reply.append(getAssociationsString(guild));
+                            logger.info("Sent server list in channel: " + event.getChannel().getName() +
+                                    " at request of user: " + event.getAuthor().getName());
                         }
                     }
                     reply = reply.append("```");
                     break;
                 //********** Save ****************/
                 case "!save":
+                    logger.info("Save requested in: " + event.getChannel().getName() +
+                            " by user: " + event.getAuthor().getName());
                     if(saveData()){
                         reply = reply.append("Save successful.");
                     } else {
@@ -304,13 +318,15 @@ public class ListenerImpl extends ListenerAdapter {
                     if(file.exists()){
                         try {
                             event.getChannel().sendFile(file, null).queue();
+                            logger.info("Sent logs in channel: " + event.getChannel().getName() +
+                                    " at request of user: " + event.getAuthor().getName());
                         } catch (IOException e) {
                             logger.warning(e.getMessage());
                         }
                     }
                     break;
                 case "!shutdown":
-                    event.getChannel().sendMessage("Bye bye!");
+                    event.getChannel().sendMessage("Bye bye!").queue();
                     System.exit(1);
             }
             if (!reply.toString().isEmpty()) {
