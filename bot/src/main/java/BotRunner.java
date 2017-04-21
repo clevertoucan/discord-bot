@@ -22,7 +22,7 @@ public class BotRunner {
     static Logger logger = Logger.getLogger("BotLogger");
     public static void main(String[] args){
         try{
-            FileHandler handler = new FileHandler("bot.log", false);
+            FileHandler handler = new FileHandler("bot.log", true);
             handler.setFormatter(new SimpleFormatter());
             logger.addHandler(handler);
 
