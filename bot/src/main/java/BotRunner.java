@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
  * Created by Joshua Owens on 1/30/2017.
@@ -21,7 +22,9 @@ public class BotRunner {
     static Logger logger = Logger.getLogger("BotLogger");
     public static void main(String[] args){
         try{
-            logger.addHandler(new FileHandler("bot.log", true));
+            FileHandler handler = new FileHandler("bot.log", false);
+            handler.setFormatter(new SimpleFormatter());
+            logger.addHandler(handler);
 
             JDA jda = new JDABuilder(AccountType.BOT).setToken("MjM2NTgzNTQ3MDkwMTA4NDI3.C3Gliw.d9LaQFStsXF7O0MTYxlnKyUs6Dc").buildBlocking();
             ListenerImpl.globalJDA = jda;
