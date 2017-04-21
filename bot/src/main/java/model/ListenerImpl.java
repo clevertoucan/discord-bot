@@ -88,13 +88,13 @@ public class ListenerImpl extends ListenerAdapter {
 
     public void onMessageReceived(MessageReceivedEvent event) {
         String[] message = event.getMessage().getContent().split(" +");
-
-        if (message[0].charAt(0) == '!') {
-            StringBuilder reply = new StringBuilder();
+        if (message.length > 0) {
+            if (message[0].charAt(0) == '!') {
+                StringBuilder reply = new StringBuilder();
             /*
                 Sets the United Nations host server. Can only be called by the current server's owner.
              */
-            switch (message[0]) {
+                switch (message[0]) {
                 /*
                 case "!setunitednations":
                     if (event.getAuthor().getId().equals(targetGuild.getOwner().getUser().getId())) {
@@ -117,220 +117,221 @@ public class ListenerImpl extends ListenerAdapter {
                     }
                     break;
                  */
-                //*********** LinkChannel *********/
-                case "!linkchannel":
-                    if (message.length >= 3) {
-                        List<TextChannel> channels = event.getMessage().getMentionedChannels();
-                        List<Role> roles = event.getMessage().getMentionedRoles();
+                    //*********** LinkChannel *********/
+                    case "!linkchannel":
+                        if (message.length >= 3) {
+                            List<TextChannel> channels = event.getMessage().getMentionedChannels();
+                            List<Role> roles = event.getMessage().getMentionedRoles();
 
-                        int i = 2;
-                        if (message[1].charAt(0) == '\"') {
-                            message[1] = message[1].substring(1);
-                            if (message[1].charAt(message[1].length() - 1) == '\"') {
-                                message[1] = message[1].substring(0, message[1].length() - 1);
-                            } else {
-                                for (; i < message.length; i++) {
-                                    if (message[i].charAt(message[i].length() - 1) == '\"') {
-                                        message[i] = message[i].substring(0, message[i].length() - 1);
+                            int i = 2;
+                            if (message[1].charAt(0) == '\"') {
+                                message[1] = message[1].substring(1);
+                                if (message[1].charAt(message[1].length() - 1) == '\"') {
+                                    message[1] = message[1].substring(0, message[1].length() - 1);
+                                } else {
+                                    for (; i < message.length; i++) {
+                                        if (message[i].charAt(message[i].length() - 1) == '\"') {
+                                            message[i] = message[i].substring(0, message[i].length() - 1);
+                                            message[1] += " " + message[i];
+                                            i++;
+                                            message[2] = message[i];
+                                            break;
+                                        }
                                         message[1] += " " + message[i];
-                                        i++;
-                                        message[2] = message[i];
-                                        break;
                                     }
-                                    message[1] += " " + message[i];
                                 }
                             }
-                        }
 
-                        if (message[2].charAt(0) == '\"') {
-                            message[2] = message[2].substring(1);
-                            if (message[2].charAt(message[2].length() - 1) == '\"') {
-                                message[2] = message[2].substring(0, message[2].length() - 1);
-                            } else {
-                                for (; i < message.length; i++) {
-                                    if (message[i].charAt(message[i].length() - 1) == '\"') {
-                                        message[i] = message[i].substring(0, message[i].length() - 1);
+                            if (message[2].charAt(0) == '\"') {
+                                message[2] = message[2].substring(1);
+                                if (message[2].charAt(message[2].length() - 1) == '\"') {
+                                    message[2] = message[2].substring(0, message[2].length() - 1);
+                                } else {
+                                    for (; i < message.length; i++) {
+                                        if (message[i].charAt(message[i].length() - 1) == '\"') {
+                                            message[i] = message[i].substring(0, message[i].length() - 1);
+                                            message[2] += " " + message[i];
+                                            break;
+                                        }
                                         message[2] += " " + message[i];
-                                        break;
                                     }
-                                    message[2] += " " + message[i];
                                 }
                             }
-                        }
-                        try {
-                            boolean success;
-                            Role role;
-                            if (roles.size() > 0) {
-                                role = roles.get(0);
-                            } else {
-                                role = targetGuild.getRolesByName(message[2], true).get(0);
-                            }
-                            if (channels.size() > 0) {
-                                for (Channel c : channels) {
-                                    success = linkChannelToRole(c, role);
+                            try {
+                                boolean success;
+                                Role role;
+                                if (roles.size() > 0) {
+                                    role = roles.get(0);
+                                } else {
+                                    role = targetGuild.getRolesByName(message[2], true).get(0);
+                                }
+                                if (channels.size() > 0) {
+                                    for (Channel c : channels) {
+                                        success = linkChannelToRole(c, role);
+                                        if (success) {
+                                            logger.info("Linked Channel: " + message[1] + " to role: " + role.getName()
+                                                    + " at the request of user: " + event.getAuthor().getName());
+                                            reply = reply.append("Linked Channel: ").append(c.getName()).append(" to role: ")
+                                                    .append(role.getName()).append("\n");
+                                        }
+                                    }
+                                } else {
+                                    List<TextChannel> channelList;
+                                    List<VoiceChannel> voiceChannels;
+                                    if ((channelList = targetGuild.getTextChannelsByName(message[1], true)).size() > 0) {
+                                        success = linkChannelToRole(channelList.get(0), role);
+                                    } else if ((voiceChannels = targetGuild.getVoiceChannelsByName(message[1], true)).size() > 0) {
+                                        success = linkChannelToRole(voiceChannels.get(0), role);
+                                    } else {
+                                        success = false;
+                                        logger.log(Level.WARNING, "Something weird happened");
+                                    }
                                     if (success) {
                                         logger.info("Linked Channel: " + message[1] + " to role: " + role.getName()
                                                 + " at the request of user: " + event.getAuthor().getName());
-                                        reply = reply.append("Linked Channel: ").append(c.getName()).append(" to role: ")
-                                                .append(role.getName()).append("\n");
                                     }
                                 }
-                            } else {
-                                List<TextChannel> channelList;
-                                List<VoiceChannel> voiceChannels;
-                                if ((channelList = targetGuild.getTextChannelsByName(message[1], true)).size() > 0) {
-                                    success = linkChannelToRole(channelList.get(0), role);
-                                } else if ((voiceChannels = targetGuild.getVoiceChannelsByName(message[1], true)).size() > 0) {
-                                    success = linkChannelToRole(voiceChannels.get(0), role);
+                            } catch (IndexOutOfBoundsException e) {
+                                logger.log(Level.WARNING, "Role or channel not found");
+                                e.printStackTrace();
+                            }
+                        } else {
+                            reply = reply.append("linkchannel needs a role and at lease one channel to link.\n")
+                                    .append("```Usage:\n\tlinkchannel <\"channel_name\"> <\"role_name\">")
+                                    .append("\n\tlinkchannel <#text-channel1 #text-channel2...> <\"role_name\"")
+                                    .append("\n\tlinkchannel <\"channel_name\"> <@role_name>")
+                                    .append("\n\tlinkchannel <#text-channel1 #text-channel2...> <@role_name>```");
+                        }
+                        break;
+                    //*********** Delink *********/
+                    case "!delink":
+                        if (message.length >= 3) {
+                            List<TextChannel> channels = event.getMessage().getMentionedChannels();
+                            List<Role> roles = event.getMessage().getMentionedRoles();
+
+                            int i = 2;
+                            if (message[1].charAt(0) == '\"') {
+                                message[1] = message[1].substring(1);
+                                if (message[1].charAt(message[1].length() - 1) == '\"') {
+                                    message[1] = message[1].substring(0, message[1].length() - 1);
                                 } else {
-                                    success = false;
-                                    logger.log(Level.WARNING, "Something weird happened");
-                                }
-                                if (success) {
-                                    logger.info("Linked Channel: " + message[1] + " to role: " + role.getName()
-                                            + " at the request of user: " + event.getAuthor().getName());
-                                }
-                            }
-                        } catch (IndexOutOfBoundsException e) {
-                            logger.log(Level.WARNING, "Role or channel not found");
-                            e.printStackTrace();
-                        }
-                    } else {
-                        reply = reply.append("linkchannel needs a role and at lease one channel to link.\n")
-                                .append("```Usage:\n\tlinkchannel <\"channel_name\"> <\"role_name\">")
-                                .append("\n\tlinkchannel <#text-channel1 #text-channel2...> <\"role_name\"")
-                                .append("\n\tlinkchannel <\"channel_name\"> <@role_name>")
-                                .append("\n\tlinkchannel <#text-channel1 #text-channel2...> <@role_name>```");
-                    }
-                    break;
-                //*********** Delink *********/
-                case "!delink":
-                    if (message.length >= 3) {
-                        List<TextChannel> channels = event.getMessage().getMentionedChannels();
-                        List<Role> roles = event.getMessage().getMentionedRoles();
-
-                        int i = 2;
-                        if (message[1].charAt(0) == '\"') {
-                            message[1] = message[1].substring(1);
-                            if (message[1].charAt(message[1].length() - 1) == '\"') {
-                                message[1] = message[1].substring(0, message[1].length() - 1);
-                            } else {
-                                for (; i < message.length; i++) {
-                                    if (message[i].charAt(message[i].length() - 1) == '\"') {
-                                        message[i] = message[i].substring(0, message[i].length() - 1);
+                                    for (; i < message.length; i++) {
+                                        if (message[i].charAt(message[i].length() - 1) == '\"') {
+                                            message[i] = message[i].substring(0, message[i].length() - 1);
+                                            message[1] += " " + message[i];
+                                            i++;
+                                            message[2] = message[i];
+                                            break;
+                                        }
                                         message[1] += " " + message[i];
-                                        i++;
-                                        message[2] = message[i];
-                                        break;
                                     }
-                                    message[1] += " " + message[i];
                                 }
                             }
-                        }
 
-                        if (message[2].charAt(0) == '\"') {
-                            message[2] = message[2].substring(1);
-                            if (message[2].charAt(message[2].length() - 1) == '\"') {
-                                message[2] = message[2].substring(0, message[2].length() - 1);
-                            } else {
-                                for (; i < message.length; i++) {
-                                    if (message[i].charAt(message[i].length() - 1) == '\"') {
-                                        message[i] = message[i].substring(0, message[i].length() - 1);
+                            if (message[2].charAt(0) == '\"') {
+                                message[2] = message[2].substring(1);
+                                if (message[2].charAt(message[2].length() - 1) == '\"') {
+                                    message[2] = message[2].substring(0, message[2].length() - 1);
+                                } else {
+                                    for (; i < message.length; i++) {
+                                        if (message[i].charAt(message[i].length() - 1) == '\"') {
+                                            message[i] = message[i].substring(0, message[i].length() - 1);
+                                            message[2] += " " + message[i];
+                                            break;
+                                        }
                                         message[2] += " " + message[i];
-                                        break;
                                     }
-                                    message[2] += " " + message[i];
                                 }
                             }
-                        }
-                        try {
-                            boolean success;
-                            Role role;
-                            if (roles.size() > 0) {
-                                role = roles.get(0);
-                            } else {
-                                role = targetGuild.getRolesByName(message[2], true).get(0);
-                            }
-                            if (channels.size() > 0) {
-                                for (Channel c : channels) {
-                                    success = delinkChannelFromRole(c, role);
+                            try {
+                                boolean success;
+                                Role role;
+                                if (roles.size() > 0) {
+                                    role = roles.get(0);
+                                } else {
+                                    role = targetGuild.getRolesByName(message[2], true).get(0);
+                                }
+                                if (channels.size() > 0) {
+                                    for (Channel c : channels) {
+                                        success = delinkChannelFromRole(c, role);
+                                        if (success) {
+                                            logger.info("Delinked Channel: " + message[1] + " from role: " + role.getName()
+                                                    + " at the request of user: " + event.getAuthor().getName());
+                                            reply = reply.append("Delinked Channel: ").append(c.getName()).append(" from role: ")
+                                                    .append(role.getName()).append("\n");
+                                        }
+                                    }
+                                } else {
+                                    List<TextChannel> channelList;
+                                    List<VoiceChannel> voiceChannels;
+                                    if ((channelList = targetGuild.getTextChannelsByName(message[1], true)).size() > 0) {
+                                        success = delinkChannelFromRole(channelList.get(0), role);
+                                    } else if ((voiceChannels = targetGuild.getVoiceChannelsByName(message[1], true)).size() > 0) {
+                                        success = delinkChannelFromRole(voiceChannels.get(0), role);
+                                    } else {
+                                        success = false;
+                                        logger.log(Level.WARNING, "Something weird happened");
+                                    }
                                     if (success) {
                                         logger.info("Delinked Channel: " + message[1] + " from role: " + role.getName()
                                                 + " at the request of user: " + event.getAuthor().getName());
-                                        reply = reply.append("Delinked Channel: ").append(c.getName()).append(" from role: ")
+                                        reply = reply.append("Delinked Channel: ").append(message[1]).append(" from role: ")
                                                 .append(role.getName()).append("\n");
                                     }
                                 }
-                            } else {
-                                List<TextChannel> channelList;
-                                List<VoiceChannel> voiceChannels;
-                                if ((channelList = targetGuild.getTextChannelsByName(message[1], true)).size() > 0) {
-                                    success = delinkChannelFromRole(channelList.get(0), role);
-                                } else if ((voiceChannels = targetGuild.getVoiceChannelsByName(message[1], true)).size() > 0) {
-                                    success = delinkChannelFromRole(voiceChannels.get(0), role);
-                                } else {
-                                    success = false;
-                                    logger.log(Level.WARNING, "Something weird happened");
-                                }
-                                if (success) {
-                                    logger.info("Delinked Channel: " + message[1] + " from role: " + role.getName()
-                                        + " at the request of user: " + event.getAuthor().getName());
-                                    reply = reply.append("Delinked Channel: ").append(message[1]).append(" from role: ")
-                                            .append(role.getName()).append("\n");
-                                }
+                            } catch (IndexOutOfBoundsException e) {
+                                logger.log(Level.WARNING, "Role or channel not found");
+                                e.printStackTrace();
                             }
-                        } catch (IndexOutOfBoundsException e) {
-                            logger.log(Level.WARNING, "Role or channel not found");
-                            e.printStackTrace();
+                        } else {
+                            reply = reply.append("delink needs a role and at lease one channel to link.\n")
+                                    .append("```Usage:\n\tdelink <\"channel_name\"> <\"role_name\">")
+                                    .append("\n\tdelink <#text-channel1 #text-channel2...> <\"role_name\"")
+                                    .append("\n\tdelink <\"channel_name\"> <@role_name>")
+                                    .append("\n\tdelink <#text-channel1 #text-channel2...> <@role_name>```");
                         }
-                    } else {
-                        reply = reply.append("delink needs a role and at lease one channel to link.\n")
-                                .append("```Usage:\n\tdelink <\"channel_name\"> <\"role_name\">")
-                                .append("\n\tdelink <#text-channel1 #text-channel2...> <\"role_name\"")
-                                .append("\n\tdelink <\"channel_name\"> <@role_name>")
-                                .append("\n\tdelink <#text-channel1 #text-channel2...> <@role_name>```");
-                    }
-                    break;
-                //********* List Servers ********/
-                case "!servers":
-                    reply = reply.append(String.format("```United Nations Host Server: %4s\n\n", targetGuild.getName()));
-                    for (Guild guild : globalJDA.getGuilds()) {
-                        if (!guild.equals(targetGuild)) {
-                            reply = reply.append(getAssociationsString(guild));
-                            logger.info("Sent server list in channel: " + event.getChannel().getName() +
-                                    " at request of user: " + event.getAuthor().getName());
+                        break;
+                    //********* List Servers ********/
+                    case "!servers":
+                        reply = reply.append(String.format("```United Nations Host Server: %4s\n\n", targetGuild.getName()));
+                        for (Guild guild : globalJDA.getGuilds()) {
+                            if (!guild.equals(targetGuild)) {
+                                reply = reply.append(getAssociationsString(guild));
+                            }
                         }
-                    }
-                    reply = reply.append("```");
-                    break;
-                //********** Save ****************/
-                case "!save":
-                    logger.info("Save requested in: " + event.getChannel().getName() +
-                            " by user: " + event.getAuthor().getName());
-                    if(saveData()){
-                        reply = reply.append("Save successful.");
-                    } else {
-                        reply = reply.append("Save unsuccessful.");
-                    }
-                    break;
-                case "!logs":
-                    File file = new File("bot.log");
-                    if(file.exists()){
-                        try {
-                            event.getChannel().sendFile(file, null).queue();
-                            logger.info("Sent logs in channel: " + event.getChannel().getName() +
-                                    " at request of user: " + event.getAuthor().getName());
-                        } catch (IOException e) {
-                            logger.warning(e.getMessage());
+                        logger.info("Sent server list in channel: " + event.getChannel().getName() +
+                                " at request of user: " + event.getAuthor().getName());
+                        reply = reply.append("```");
+                        break;
+                    //********** Save ****************/
+                    case "!save":
+                        logger.info("Save requested in: " + event.getChannel().getName() +
+                                " by user: " + event.getAuthor().getName());
+                        if (saveData()) {
+                            reply = reply.append("Save successful.");
+                        } else {
+                            reply = reply.append("Save unsuccessful.");
                         }
-                    }
-                    break;
-                case "!shutdown":
-                    event.getChannel().sendMessage("Bye bye!").queue();
-                    System.exit(1);
-            }
-            if (!reply.toString().isEmpty()) {
-                event.getChannel().sendMessage(reply.toString()).queue();
+                        break;
+                    case "!logs":
+                        File file = new File("bot.log");
+                        if (file.exists()) {
+                            try {
+                                event.getChannel().sendFile(file, null).queue();
+                                logger.info("Sent logs in channel: " + event.getChannel().getName() +
+                                        " at request of user: " + event.getAuthor().getName());
+                            } catch (IOException e) {
+                                logger.warning(e.getMessage());
+                            }
+                        }
+                        break;
+                    case "!shutdown":
+                        event.getChannel().sendMessage("Bye bye!").queue();
+                        System.exit(1);
+                }
+                if (!reply.toString().isEmpty()) {
+                    event.getChannel().sendMessage(reply.toString()).queue();
+                }
             }
         }
     }
