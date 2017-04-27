@@ -96,33 +96,8 @@ public class ListenerImpl extends ListenerAdapter {
             if (message.length > 0) {
                 if (message[0].charAt(0) == '!') {
                     StringBuilder reply = new StringBuilder();
-            /*
-                Sets the United Nations host server. Can only be called by the current server's owner.
-             */
+
                     switch (message[0]) {
-                /*
-                case "!setunitednations":
-                    if (event.getAuthor().getId().equals(targetGuild.getOwner().getUser().getId())) {
-                        if (message.length > 1) {
-                            for (int i = 2; i < message.length; i++) {
-                                message[1] += " " + message[2];
-                            }
-                            for (Guild guild : roleMap.keySet()) {
-                                if (guild.getName().equals(message[1])) {
-                                    if (!setTargetGuild(guild)) {
-                                        reply = reply.append("Saving the new server failed, server changes will reset\n");
-                                    }
-                                }
-                            }
-                        } else {
-                            reply = reply.append("Missing server name.\n");
-                        }
-                    } else {
-                        reply = reply.append("This command must be run by the server owner.\n");
-                    }
-                    break;
-                 */
-                        //*********** LinkChannel *********/
                         case "!linkchannel":
                             if(member.getRoles().contains(specialRoles.get("moderator"))
                                     || member.getRoles().contains(specialRoles.get("admin"))
@@ -198,6 +173,8 @@ public class ListenerImpl extends ListenerAdapter {
                                             if (success) {
                                                 logger.info("Linked Channel: " + message[1] + " to role: " + role.getName()
                                                         + " at the request of user: " + event.getAuthor().getName());
+                                                reply = reply.append("Linked Channel: ").append(message[1]).append(" to role: ")
+                                                        .append(role.getName()).append("\n");
                                             }
                                         }
                                     } catch (IndexOutOfBoundsException e) {
@@ -320,6 +297,22 @@ public class ListenerImpl extends ListenerAdapter {
                                     reply = reply.append(getAssociationsString(guild));
                                 }
                             }
+                            reply = reply.append("Special Channels:");
+                            if(specialChannels.size() > 0) {
+                                for (Map.Entry<String, Channel> entry : specialChannels.entrySet()){
+                                    reply.append("\n\tFlag: ").append(entry.getKey()).append(", Channel: ").append(entry.getValue().getName());
+                                }
+                            } else {
+                                reply = reply.append("   None");
+                            }
+                            reply = reply.append("\n\nSpecial Roles:");
+                            if(specialRoles.size() > 0) {
+                                for (Map.Entry<String, Role> entry : specialRoles.entrySet()){
+                                    reply.append("\n\tFlag: ").append(entry.getKey()).append(", Role: ").append(entry.getValue().getName());
+                                }
+                            } else {
+                                reply = reply.append("\t  None");
+                            }
                             logger.info("Sent server list in channel: " + event.getChannel().getName() +
                                     " at request of user: " + event.getAuthor().getName());
                             reply = reply.append("```");
@@ -378,10 +371,73 @@ public class ListenerImpl extends ListenerAdapter {
                             break;
                         case "!shutdown":
                             event.getChannel().sendMessage("Bye bye!").queue();
+                            logger.info("Shutdown requested by " + event.getAuthor().getName());
+                            saveData();
                             System.exit(1);
 
                             break;
 
+                        case "!setspecialchannel":
+                            if(member.getRoles().contains(specialRoles.get("moderator"))
+                                    || member.getRoles().contains(specialRoles.get("admin"))
+                                    || member.getPermissions().contains(Permission.ADMINISTRATOR)) {
+                                int i = 2;
+                                if (message[1].charAt(0) == '\"') {
+                                    message[1] = message[1].substring(1);
+                                    if (message[1].charAt(message[1].length() - 1) == '\"') {
+                                        message[1] = message[1].substring(0, message[1].length() - 1);
+                                    } else {
+                                        for (; i < message.length; i++) {
+                                            if (message[i].charAt(message[i].length() - 1) == '\"') {
+                                                message[i] = message[i].substring(0, message[i].length() - 1);
+                                                message[1] += " " + message[i];
+                                                i++;
+                                                message[2] = message[i];
+                                                break;
+                                            }
+                                            message[1] += " " + message[i];
+                                        }
+                                    }
+                                }
+                                List<TextChannel> channels= event.getMessage().getMentionedChannels();
+                                TextChannel channel = null;
+                                if(channels.size() > 0) {
+                                    channel = channels.get(0);
+                                } else {
+                                    if (message[2].charAt(0) == '\"') {
+                                        message[2] = message[2].substring(1);
+                                        if (message[2].charAt(message[2].length() - 1) == '\"') {
+                                            message[2] = message[2].substring(0, message[2].length() - 1);
+                                        } else {
+                                            i++;
+                                            for (; i < message.length; i++) {
+                                                if (message[i].charAt(message[i].length() - 1) == '\"') {
+                                                    message[i] = message[i].substring(0, message[i].length() - 1);
+                                                    message[2] += " " + message[i];
+                                                    break;
+                                                }
+                                                message[2] += " " + message[i];
+                                            }
+                                        }
+                                    }
+                                    channels = targetGuild.getTextChannelsByName(message[2], true);
+                                    if(channels.size() > 0){
+                                        channel = channels.get(0);
+                                    }
+                                }
+                                if(channel != null) {
+                                    specialChannels.put(message[1], channel);
+                                    saveData();
+                                    reply = reply.append("Added flag ").append(message[1]).append(" to channel ").append(channel.getName());
+                                    logger.info("Added flag " + message[1] + " to channel " + channel.getName());
+                                } else {
+                                    reply = reply.append("Could not parse the role specified");
+                                }
+                            } else {
+                                reply = reply.append("You must have a role of ").append(specialRoles.get("moderator").getName())
+                                        .append(" to use that command.");
+                            }
+                            break;
                         case "!setspecialrole":
                             if(member.getRoles().contains(specialRoles.get("moderator"))
                                     || member.getRoles().contains(specialRoles.get("admin"))
@@ -432,6 +488,7 @@ public class ListenerImpl extends ListenerAdapter {
                                 }
                                 if(role != null) {
                                     specialRoles.put(message[1], role);
+                                    saveData();
                                     reply = reply.append("Added flag ").append(message[1]).append(" to role ").append(role.getName());
                                     logger.info("Added flag " + message[1] + " to role " + role.getName());
                                 } else {
@@ -442,51 +499,6 @@ public class ListenerImpl extends ListenerAdapter {
                                         .append(" to use that command.");
                             }
                             break;
-/*
-                        case "!clear":
-                            if(member.getRoles().contains(specialRoles.get("moderator"))
-                                    || member.getRoles().contains(specialRoles.get("admin"))
-                                    || member.getPermissions().contains(Permission.ADMINISTRATOR)) {
-
-                                if (message.length > 1) {
-                                    List<User> users = event.getMessage().getMentionedUsers();
-                                    if (users.size() > 0) {
-                                        for (User user : users) {
-                                            clear(event.getTextChannel(), user);
-                                        }
-                                    } else {
-                                        int i = 2;
-                                        if (message[1].charAt(0) == '\"') {
-                                            message[1] = message[1].substring(1);
-                                            if (message[1].charAt(message[1].length() - 1) == '\"') {
-                                                message[1] = message[1].substring(0, message[1].length() - 1);
-                                            } else {
-                                                for (; i < message.length; i++) {
-                                                    if (message[i].charAt(message[i].length() - 1) == '\"') {
-                                                        message[i] = message[i].substring(0, message[i].length() - 1);
-                                                        message[1] += " " + message[i];
-                                                        i++;
-                                                        message[2] = message[i];
-                                                        break;
-                                                    }
-                                                    message[1] += " " + message[i];
-                                                }
-                                            }
-                                        }
-                                        List<Member> members = targetGuild.getMembersByName(message[2], true);
-                                        if(members.size()>0){
-                                            clear(event.getTextChannel(), member.getUser());
-                                        }
-                                    }
-                                } else {
-                                    clear(event.getTextChannel(), null);
-                                }
-                            } else {
-                                reply = reply.append("You must have a role of ").append(specialRoles.get("moderator").getName())
-                                        .append(" to use that command.");
-                            }
-                            break;
-                            */
                         //TODO: !clear, !beef
 
                     }
@@ -496,29 +508,6 @@ public class ListenerImpl extends ListenerAdapter {
                 }
             }
         }
-    }
-
-    private boolean clear(TextChannel channel, User user){
-        if(user == null){
-            try {
-                channel.deleteMessages(channel.getHistory().retrievePast(100).block());
-                return true;
-            } catch (RateLimitedException e) {
-                logger.warning(e.getMessage());
-            }
-        } else {
-            try {
-                for(Message message: channel.getHistory().retrievePast(100).block()){
-                    if(user.equals(message.getAuthor())){
-                        channel.deleteMessageById(message.getId());
-                    }
-                }
-                return true;
-            } catch (RateLimitedException e) {
-                logger.warning(e.getMessage());
-            }
-        }
-        return false;
     }
 
     private String getAssociationsString(Guild guild){
@@ -712,7 +701,7 @@ public class ListenerImpl extends ListenerAdapter {
             }
             HashMap<String, String> specialChannelsID = new HashMap<>();
             for(Map.Entry<String, Channel> entry: specialChannels.entrySet()){
-                specialRolesID.put(entry.getKey(), entry.getValue().getId());
+                specialChannelsID.put(entry.getKey(), entry.getValue().getId());
             }
             FileOutputStream fos = new FileOutputStream(dataFile);
             ObjectOutputStream oos = new ObjectOutputStream(fos);
@@ -744,9 +733,9 @@ public class ListenerImpl extends ListenerAdapter {
                 for(Map.Entry<String, String> entry: data.specialRolesID.entrySet()){
                     specialRoles.put(entry.getKey(), targetGuild.getRoleById(entry.getValue()));
                 }
-                for(Map.Entry<String, String> entry: data.specialRolesID.entrySet()){
-                    Channel channel = null;
-                    if((channel = targetGuild.getTextChannelById(entry.getValue())) != null){} else {
+                for(Map.Entry<String, String> entry: data.specialChannelsID.entrySet()){
+                    Channel channel = targetGuild.getTextChannelById(entry.getValue());
+                    if(channel == null){
                         channel = targetGuild.getVoiceChannelById(entry.getValue());
                     }
                     specialChannels.put(entry.getKey(), channel);
