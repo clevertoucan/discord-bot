@@ -9,16 +9,19 @@ import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberLeaveEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.core.exceptions.PermissionException;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.core.utils.SimpleLog;
+import net.dv8tion.jda.core.utils.SimpleLog.Level;
 
 import java.io.*;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Created by Joshua Owens on 1/30/2017.
+ * Main entrypoint for processing events across all connected servers
  */
 public class ListenerImpl extends ListenerAdapter {
     public static JDA globalJDA;
@@ -26,27 +29,39 @@ public class ListenerImpl extends ListenerAdapter {
     private static HashMap<Role, Set<Channel>> associates = new HashMap<Role, Set<Channel>>();
     private static HashMap<String, Role> specialRoles = new HashMap<>();
     private static HashMap<String, Channel> specialChannels = new HashMap<>();
-    public static Guild targetGuild;
-    static Logger logger = Logger.getLogger("BotLogger");
+    private static Guild targetGuild;
+    private static SimpleLog logger = SimpleLog.getLog("Listener");
+    private static MessageChannel out;
 
     public void onGuildMemberJoin(GuildMemberJoinEvent event) {
         if (event.getGuild().equals(targetGuild)) {
             Member member = event.getMember();
             JDA jda = member.getJDA();
+            LinkedList<Role> addedRoles = new LinkedList<>();
             for (Guild guild : jda.getGuilds()) {
                 if (roleMap.containsKey(guild)) {
-                    logger.log(Level.INFO, "Added user: " + member.getEffectiveName()
-                            + " from server: " + guild.getName()
-                            + " to role: " + roleMap.get(guild).getName());
-                    targetGuild.getController().addRolesToMember(member, roleMap.get(guild)).queue();
-                    if(guild.getOwner().equals(guild.getMember(member.getUser()))){
-                        Role modRole = specialRoles.get("world-leader");
-                        if(modRole != null){
-                            targetGuild.getController().addRolesToMember(member,modRole).queue();
+                    try {
+                        logger.log(Level.INFO, "Added user: " + member.getEffectiveName()
+                                + " from server: " + guild.getName()
+                                + " to role: " + roleMap.get(guild).getName());
+                        addedRoles.add(roleMap.get(guild));
+                        if (guild.getOwner().equals(guild.getMember(member.getUser()))) {
+                            Role modRole = specialRoles.get("world-leader");
+                            if (modRole != null) {
+                                targetGuild.getController().addRolesToMember(member, modRole).block();
+                            }
                         }
+                    } catch (RateLimitedException e){
+                        logger.warn(e.getMessage());
+                    } catch (PermissionException e){
+                        out.sendMessage("Attempted to add " + guild.getOwner().getUser().getName() + " to "
+                                + specialRoles.get("world-leader").getName() +
+                                ", but the bot doesn't have the required permission level.").queue();
+                        logger.warn(e.getMessage());
                     }
                 }
             }
+            targetGuild.getController().addRolesToMember(member, addedRoles).queue();
         } else if(roleMap.containsKey(event.getGuild())){
             Member member = targetGuild.getMember(event.getMember().getUser());
             targetGuild.getController().addRolesToMember(member, roleMap.get(event.getGuild())).queue();
@@ -79,12 +94,25 @@ public class ListenerImpl extends ListenerAdapter {
                         ).block();
                 linkChannelToRole(textChannel, roleMap.get(event.getGuild()));
                 linkChannelToRole(voiceChannel, roleMap.get(event.getGuild()));
-                targetGuild.getPublicChannel().sendMessage(event.getGuild().getName()
+                Member owner = targetGuild.getMember(event.getGuild().getOwner().getUser());
+                if(owner != null){
+                    Role role = specialRoles.get("world-leader");
+                    if(role != null) {
+                        try {
+                            targetGuild.getController().addRolesToMember(owner, role);
+                        } catch (PermissionException e){
+                            out.sendMessage("Attempted to add " + owner.getUser().getName() + " to " + role.getName() +
+                                    ", but the bot doesn't have the required permission level.").queue();
+                        }
+                    }
+                }
+                out.sendMessage( event.getGuild().getName()
                         + " has joined the United Nations. \n" +
-                        getAssociationsString(event.getGuild())).block();
-                logger.info("The server " + event.getGuild().getName() +" has added the bot to their server.");
+                        "```" + getAssociationsString(event.getGuild()) + "```").queue();
+
+                logger.info("The server " + event.getGuild().getName() + " has added the bot to their server.");
             } catch (RateLimitedException e) {
-                logger.log(Level.SEVERE, e.getMessage());
+                logger.log(Level.FATAL, e.getMessage());
             }
         }
 
@@ -189,8 +217,8 @@ public class ListenerImpl extends ListenerAdapter {
                                                 }
                                             }
                                         } catch (IndexOutOfBoundsException e) {
-                                            logger.log(Level.WARNING, "Role or channel not found");
-                                            e.printStackTrace();
+                                            event.getChannel().sendMessage("Couldn't parse role or channel").queue();
+                                            logger.info(e.getMessage());
                                         }
                                     } else {
                                         reply = reply.append("linkchannel needs a role and at lease one channel to link.\n")
@@ -342,12 +370,12 @@ public class ListenerImpl extends ListenerAdapter {
                                 File file = new File("bot.log");
                                 if (file.exists()) {
                                     try {
-                                        event.getChannel().sendFile(file, null).queue();
                                         logger.info("Sent logfile located at: " + file.getAbsolutePath() +
-                                                "\n in channel: " + event.getChannel().getName() +
+                                                " in channel: " + event.getChannel().getName() +
                                                 " at request of user: " + event.getAuthor().getName());
+                                        event.getChannel().sendFile(file, null).queue();
                                     } catch (IOException e) {
-                                        logger.warning(e.getMessage());
+                                        logger.warn(e.getMessage());
                                     }
                                 }
                                 break;
@@ -614,7 +642,7 @@ public class ListenerImpl extends ListenerAdapter {
             saveData();
             return true;
         } catch (RateLimitedException e) {
-            logger.log(Level.SEVERE, e.getMessage());
+            logger.log(Level.FATAL, e.getMessage());
         }
         return false;
     }
@@ -648,7 +676,7 @@ public class ListenerImpl extends ListenerAdapter {
                         roleMap.put(guild, role);
                         for(Member member: targetGuild.getMembers()){
                             if(guild.isMember(member.getUser()) && !member.getRoles().contains(role)){
-                                targetGuild.getController().addRolesToMember(member, role).queue();
+                                targetGuild.getController().addRolesToMember(member, role).block();
                                 logger.info("Added " + role.getName() + " to user: " + member.getUser().getName());
                             }
                         }
@@ -659,7 +687,7 @@ public class ListenerImpl extends ListenerAdapter {
                         return true;
                     }
                 } catch (RateLimitedException e) {
-                    logger.log(Level.SEVERE, e.getMessage());
+                    logger.log(Level.FATAL, e.getMessage());
                 }
             }
         }
@@ -678,7 +706,7 @@ public class ListenerImpl extends ListenerAdapter {
                 role.delete().queue();
             }
         } catch (RateLimitedException e) {
-            logger.log(Level.SEVERE, e.getMessage());
+            logger.log(Level.FATAL, e.getMessage());
         }
         associates.remove(roleMap.get(guild));
         roleMap.remove(guild);
@@ -727,7 +755,7 @@ public class ListenerImpl extends ListenerAdapter {
             oos.close();
             return true;
         } catch (IOException e) {
-            logger.log(Level.SEVERE, e.getMessage());
+            logger.log(Level.FATAL, e.getMessage());
         }
         return false;
     }
@@ -767,10 +795,14 @@ public class ListenerImpl extends ListenerAdapter {
                     }
                     associates.put(targetGuild.getRoleById(entry.getKey()), temp);
                 }
+                out = (MessageChannel) specialChannels.get("bot-commands");
+                if(out == null){
+                    out = targetGuild.getPublicChannel();
+                }
                 logger.log(Level.INFO, "Load Successful");
                 return true;
             } catch (IOException | ClassNotFoundException e) {
-                logger.log(Level.SEVERE, e.getMessage());
+                logger.log(Level.FATAL, e.getMessage());
             }
         } else {
             logger.log(Level.WARNING, "Load file not found");

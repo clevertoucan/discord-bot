@@ -18,4 +18,4 @@ bot/src/test/
 bot/target/generated-sources/
 bot/target/classes/config.preferences
 bot/target/classes/data/
-song0.mp3
+data.ser
