@@ -48,12 +48,10 @@ public class ListenerImpl extends ListenerAdapter {
                         if (guild.getOwner().equals(guild.getMember(member.getUser()))) {
                             Role modRole = specialRoles.get("world-leader");
                             if (modRole != null) {
-                                targetGuild.getController().addRolesToMember(member, modRole).block();
+                                addedRoles.add(modRole);
                             }
                         }
-                    } catch (RateLimitedException e){
-                        logger.warn(e.getMessage());
-                    } catch (PermissionException e){
+                    }catch (PermissionException e){
                         out.sendMessage("Attempted to add " + guild.getOwner().getUser().getName() + " to "
                                 + specialRoles.get("world-leader").getName() +
                                 ", but the bot doesn't have the required permission level.").queue();
@@ -99,7 +97,7 @@ public class ListenerImpl extends ListenerAdapter {
                     Role role = specialRoles.get("world-leader");
                     if(role != null) {
                         try {
-                            targetGuild.getController().addRolesToMember(owner, role);
+                            targetGuild.getController().addRolesToMember(owner, role).block();
                         } catch (PermissionException e){
                             out.sendMessage("Attempted to add " + owner.getUser().getName() + " to " + role.getName() +
                                     ", but the bot doesn't have the required permission level.").queue();
