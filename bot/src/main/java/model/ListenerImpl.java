@@ -4,6 +4,7 @@ import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.entities.impl.TextChannelImpl;
+import net.dv8tion.jda.core.entities.impl.UserImpl;
 import net.dv8tion.jda.core.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
@@ -36,10 +37,9 @@ public class ListenerImpl extends ListenerAdapter {
     public void onGuildMemberJoin(GuildMemberJoinEvent event) {
         if (event.getGuild().equals(targetGuild)) {
             Member member = event.getMember();
-            JDA jda = member.getJDA();
             LinkedList<Role> addedRoles = new LinkedList<>();
-            for (Guild guild : jda.getGuilds()) {
-                if (roleMap.containsKey(guild)) {
+            for (Guild guild : roleMap.keySet()) {
+                if (guild.getMember(member.getUser()) != null) {
                     try {
                         logger.log(Level.INFO, "Added user: " + member.getEffectiveName()
                                 + " from server: " + guild.getName()
