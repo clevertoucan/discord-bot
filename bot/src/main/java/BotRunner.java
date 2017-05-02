@@ -15,15 +15,45 @@ import javax.security.auth.login.LoginException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Created by Joshua Owens on 1/30/2017.
  */
 public class BotRunner {
-    private static SimpleLog logger = SimpleLog.getLog("Main");
+    private static SimpleDateFormat format = new SimpleDateFormat("MMM d, YYYY");
+    private static SimpleLog.LogListener logListener = new SimpleLog.LogListener() {
+        Calendar lastMessage = Calendar.getInstance();
+        @Override
+        public void onLog(SimpleLog simpleLog, Level level, Object o) {
+            Calendar now = Calendar.getInstance();
+            if(now.get(Calendar.DATE) > lastMessage.get(Calendar.DATE)
+                    || now.get(Calendar.MONTH) > lastMessage.get(Calendar.MONTH)
+                    || now.get(Calendar.YEAR) > lastMessage.get(Calendar.YEAR)){
+                try {
+                    SimpleLog.removeFileLog(new File(format.format(lastMessage.getTime()) + ".log"));
+                    File file = new File(format.format(now.getTime()) + ".log");
+                    SimpleLog.addFileLogs(file, file);
+                    lastMessage = now;
+                } catch (IOException e) {
+                    SimpleLog.getLog("Main").fatal("Could not create new log file: " + e.getMessage());
+                }
+            }
+        }
+
+        @Override
+        public void onError(SimpleLog simpleLog, Throwable throwable) {
+            onLog(simpleLog, Level.FATAL, throwable);
+        }
+    };
     public static void main(String[] args){
+        SimpleLog.addListener(logListener);
+        SimpleLog logger = SimpleLog.getLog("Main");
         try{
-            File file = new File("bot.log");
+            File file = new File(format.format(new Date()) + ".log");
+            String str = file.getAbsolutePath();
             if(!file.exists()) {
                 file.createNewFile();
             }

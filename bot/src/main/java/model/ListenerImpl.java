@@ -35,6 +35,7 @@ public class ListenerImpl extends ListenerAdapter {
     private static MessageChannel out;
 
     public void onGuildMemberJoin(GuildMemberJoinEvent event) {
+
         if (event.getGuild().equals(targetGuild)) {
             Member member = event.getMember();
             LinkedList<Role> addedRoles = new LinkedList<>();
@@ -60,7 +61,7 @@ public class ListenerImpl extends ListenerAdapter {
                 }
             }
             targetGuild.getController().addRolesToMember(member, addedRoles).queue();
-        } else if(roleMap.containsKey(event.getGuild())){
+        } else if(roleMap.containsKey(event.getGuild()) && targetGuild.getMember(event.getMember().getUser()) != null){
             Member member = targetGuild.getMember(event.getMember().getUser());
             targetGuild.getController().addRolesToMember(member, roleMap.get(event.getGuild())).queue();
         }
@@ -414,6 +415,7 @@ public class ListenerImpl extends ListenerAdapter {
                                 event.getChannel().sendMessage("Bye bye!").queue();
                                 logger.info("Shutdown requested by " + event.getAuthor().getName());
                                 saveData();
+                                globalJDA.shutdown();
                                 System.exit(1);
 
                                 break;
