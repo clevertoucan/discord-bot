@@ -17,6 +17,7 @@ import net.dv8tion.jda.core.utils.SimpleLog;
 import net.dv8tion.jda.core.utils.SimpleLog.Level;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -33,6 +34,7 @@ public class ListenerImpl extends ListenerAdapter {
     private static Guild targetGuild;
     private static SimpleLog logger = SimpleLog.getLog("Listener");
     private static MessageChannel out;
+    private static SimpleDateFormat format = new SimpleDateFormat("MMM d, YYYY");
 
     public void onGuildMemberJoin(GuildMemberJoinEvent event) {
 
@@ -366,7 +368,7 @@ public class ListenerImpl extends ListenerAdapter {
                                 }
                                 break;
                             case "!logs":
-                                File file = new File("bot.log");
+                                File file = new File(format.format(new Date()) + ".log");
                                 if (file.exists()) {
                                     try {
                                         logger.info("Sent logfile located at: " + file.getAbsolutePath() +
