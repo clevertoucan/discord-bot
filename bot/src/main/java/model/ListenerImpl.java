@@ -1,6 +1,8 @@
 package model;
 
+import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.JDA;
+import net.dv8tion.jda.core.OnlineStatus;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.entities.impl.TextChannelImpl;
@@ -16,9 +18,11 @@ import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import net.dv8tion.jda.core.utils.SimpleLog;
 import net.dv8tion.jda.core.utils.SimpleLog.Level;
 
+import java.awt.*;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -129,6 +133,7 @@ public class ListenerImpl extends ListenerAdapter {
 
     public void onMessageReceived(MessageReceivedEvent event) {
         Channel botChannel = specialChannels.get("bot-commands");
+        botChannel = null;
         if (botChannel == null || event.getChannel().equals(botChannel)) {
             if (!event.getAuthor().equals(globalJDA.getSelfUser())) {
                 String[] message = event.getMessage().getContent().split(" +");
@@ -136,7 +141,6 @@ public class ListenerImpl extends ListenerAdapter {
                 if (message.length > 0) {
                     if (message[0].charAt(0) == '!') {
                         StringBuilder reply = new StringBuilder();
-
                         switch (message[0]) {
                             case "!linkchannel":
                                 if (member.getRoles().contains(specialRoles.get("moderator"))
@@ -544,16 +548,97 @@ public class ListenerImpl extends ListenerAdapter {
                                             .append(" to use that command.");
                                 }
                                 break;
+                            case "!makesentence":
+                                List<Member> members = new ArrayList<>();
+                                members.addAll(event.getGuild().getMembers());
+                                if(message.length > 2) {
+                                    for (int i = 2; i < message.length; i++) {
+                                        message[1] += " " + message[i];
+                                    }
+                                }
+                                for(int i = 0; i < members.size(); i++){
+                                    if(members.get(i).getOnlineStatus().equals(OnlineStatus.OFFLINE)){
+                                        members.remove(i);
+                                        i--;
+                                    }
+                                }
+                                int enumerator = 0;
+                                String[] strings = getAlphabeticalSentence(message[1]);
+                                Iterator<Member> s = members.iterator();
+                                while(enumerator < strings.length && s.hasNext()){
+                                    if(strings[enumerator] != null) {
+                                        try {
+                                            Member m = s.next();
+                                            if(!m.isOwner()) {
+                                                event.getGuild().getController()
+                                                        .setNickname(m, strings[enumerator]
+                                                                .substring(0, strings[enumerator].length() > 32 ? 32 :
+                                                                        strings[enumerator].length()))
+                                                        .block();
+                                            }
+                                        } catch (RateLimitedException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                    enumerator++;
+                                }
+                                break;
+                            case "!resetnames":
+                                for(Member m: event.getGuild().getMembers()){
+                                    if(!m.isOwner())
+                                        event.getGuild().getController().setNickname(m, m.getUser().getName()).queue();
+                                }
+                                break;
                             //TODO: !clear, !beef
-
+                            case "!clear":
+                                List<TextChannel> channels = event.getMessage().getMentionedChannels();
+                                TextChannel channel;
+                                if(channels.size()>0) {
+                                    channel = channels.get(0);
+                                } else {
+                                    channel = event.getGuild().getTextChannelsByName(message[1], true).get(0);
+                                }
+                                try {
+                                    while(channel.getHistory().retrievePast(1).block().size() > 0){
+                                        channel.deleteMessageById(channel.getHistory()
+                                                .retrievePast(1).block().get(0).getId()).queue();
+                                    }
+                                } catch (RateLimitedException e) {
+                                    e.printStackTrace();
+                                }
                         }
+
                         if (!reply.toString().isEmpty()) {
-                            event.getChannel().sendMessage(reply.toString()).queue();
+                            EmbedBuilder builder = new EmbedBuilder()
+                                    .addField(message[0], reply.toString(), true)
+                                    .setColor(Color.CYAN);
+                            event.getChannel().sendMessage(builder.build()).queue();
                         }
                     }
                 }
             }
         }
+    }
+
+    private String[] getAlphabeticalSentence(String input){
+        String[] sentence = input.split(" ");
+        String[] ret = new String[sentence.length];
+        int j = 0, i = 0;
+        for(; i < sentence.length; i++){
+            if(j >= sentence.length){
+                break;
+            }
+            ret[i] = sentence[j];
+            for(++j; j < sentence.length; j++){
+                if(ret[i].compareToIgnoreCase(sentence[j]) > 0){
+                    ret[i] += " " + sentence[j];
+                } else {
+                    break;
+                }
+
+            }
+        }
+        return ret;
     }
 
     private String getAssociationsString(Guild guild){

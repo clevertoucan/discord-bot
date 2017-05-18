@@ -59,7 +59,7 @@ public class BotRunner {
             }
             SimpleLog.addFileLogs(file, file);
 
-            JDA jda = new JDABuilder(AccountType.BOT).setToken("MjM2NTgzNTQ3MDkwMTA4NDI3.C3Gliw.d9LaQFStsXF7O0MTYxlnKyUs6Dc").buildBlocking();
+            JDA jda = new JDABuilder(AccountType.BOT).setToken("MzExOTk2MjAzODI1MTAyODUw.C_ZTVg.0EzSOe4tAjhJVGw7JtCqmAGUe6s").buildBlocking();
             ListenerImpl.globalJDA = jda;
             if(!ListenerImpl.loadData()) {
                 ListenerImpl.setTargetGuild(jda.getGuildById("302810413647527936"));
@@ -68,6 +68,9 @@ public class BotRunner {
                 }
             }
 
+            jda.addEventListener(new ListenerImpl());
+            jda.shutdown(false);
+            jda = new JDABuilder(AccountType.BOT).setToken("MzExOTk2MjAzODI1MTAyODUw.C_ZTVg.0EzSOe4tAjhJVGw7JtCqmAGUe6s").buildBlocking();
             jda.addEventListener(new ListenerImpl());
         } catch(LoginException | InterruptedException | RateLimitedException | IOException e){
             logger.log(Level.WARNING, e.getMessage());
