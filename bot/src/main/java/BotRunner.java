@@ -21,7 +21,7 @@ import java.util.Date;
  * Created by Joshua Owens on 1/30/2017.
  */
 public class BotRunner {
-    private static SimpleDateFormat format = new SimpleDateFormat("MMM d, YYYY");
+    private static SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-d");
     private static SimpleLog.LogListener logListener = new SimpleLog.LogListener() {
         Calendar lastMessage = Calendar.getInstance();
         @Override
