@@ -12,9 +12,7 @@ import net.dv8tion.jda.core.utils.SimpleLog;
 import net.dv8tion.jda.core.utils.SimpleLog.Level;
 
 import javax.security.auth.login.LoginException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -58,8 +56,18 @@ public class BotRunner {
                 file.createNewFile();
             }
             SimpleLog.addFileLogs(file, file);
-
-            JDA jda = new JDABuilder(AccountType.BOT).setToken("MzExOTk2MjAzODI1MTAyODUw.C_ZTVg.0EzSOe4tAjhJVGw7JtCqmAGUe6s").buildBlocking();
+            File prefs = new File("/prefs/prefs.txt");
+            if(!prefs.exists()){
+                logger.warn("Prefs not found, exiting...");
+                System.exit(-1);
+            }
+            BufferedReader reader = new BufferedReader(new FileReader(prefs));
+            String token = reader.readLine();
+            if(token == null){
+                logger.warn("Prefs empty, exiting...");
+                System.exit(-1);
+            }
+            JDA jda = new JDABuilder(AccountType.BOT).setToken(token).buildBlocking();
             ListenerImpl.globalJDA = jda;
             if(!ListenerImpl.loadData()) {
                 ListenerImpl.setTargetGuild(jda.getGuildById("302810413647527936"));
@@ -68,9 +76,6 @@ public class BotRunner {
                 }
             }
 
-            jda.addEventListener(new ListenerImpl());
-            jda.shutdown(false);
-            jda = new JDABuilder(AccountType.BOT).setToken("MzExOTk2MjAzODI1MTAyODUw.C_ZTVg.0EzSOe4tAjhJVGw7JtCqmAGUe6s").buildBlocking();
             jda.addEventListener(new ListenerImpl());
         } catch(LoginException | InterruptedException | RateLimitedException | IOException e){
             logger.log(Level.WARNING, e.getMessage());
