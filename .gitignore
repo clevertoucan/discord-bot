@@ -19,3 +19,16 @@ bot/target/generated-sources/
 bot/target/classes/config.preferences
 bot/target/classes/data/
 data.ser
+May 10, 2017.log
+May 11, 2017.log
+May 14, 2017.log
+May 17, 2017.log
+May 21, 2017.log
+May 3, 2017.log
+bot.log
+bot/logs/
+bot/target/classes/BotRunner$1.class
+bot/target/classes/model/ListenerImpl$1.class
+bot/target/classes/model/ListenerImpl$Data.class
+bot/target/classes/model/MessageHandler.class
+prefs.ser
