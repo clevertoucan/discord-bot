@@ -1,8 +1,5 @@
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
-import model.ListenerImpl;
-import model.MessageHandler;
+import controller.CalendarListenerImpl;
+import controller.VotingListenerImpl;
 import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.JDABuilder;
@@ -56,27 +53,20 @@ public class BotRunner {
                 file.createNewFile();
             }
             SimpleLog.addFileLogs(file, file);
-            File prefs = new File("/prefs/prefs.txt");
+            File prefs = new File("apitoken");
             if(!prefs.exists()){
-                logger.warn("Prefs not found, exiting...");
+                logger.warn("API Token not found, exiting...");
                 System.exit(-1);
             }
             BufferedReader reader = new BufferedReader(new FileReader(prefs));
             String token = reader.readLine();
             if(token == null){
-                logger.warn("Prefs empty, exiting...");
+                logger.warn("API Token empty, exiting...");
                 System.exit(-1);
             }
             JDA jda = new JDABuilder(AccountType.BOT).setToken(token).buildBlocking();
-            ListenerImpl.globalJDA = jda;
-            if(!ListenerImpl.loadData()) {
-                ListenerImpl.setTargetGuild(jda.getGuildById("302810413647527936"));
-                for (Guild guild : jda.getGuilds()) {
-                    ListenerImpl.linkServerToRole(guild);
-                }
-            }
 
-            jda.addEventListener(new ListenerImpl());
+            jda.addEventListener(new CalendarListenerImpl());
         } catch(LoginException | InterruptedException | RateLimitedException | IOException e){
             logger.log(Level.WARNING, e.getMessage());
         }

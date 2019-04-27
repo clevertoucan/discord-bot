@@ -1,4 +1,4 @@
-package model;
+package controller;
 
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.JDA;
@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  * Created by Joshua Owens on 1/30/2017.
  * Main entrypoint for processing events across all connected servers
  */
-public class ListenerImpl extends ListenerAdapter {
+public class VotingListenerImpl extends ListenerAdapter {
     public static JDA globalJDA;
     private static HashMap<Guild, Role> roleMap = new HashMap<Guild, Role>();
     private static HashMap<Role, Set<Channel>> associates = new HashMap<Role, Set<Channel>>();
