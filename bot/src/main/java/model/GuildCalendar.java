@@ -1,9 +1,10 @@
 package model;
 
+import java.util.Collection;
 import java.util.HashMap;
 
 public class GuildCalendar {
-    HashMap<String, CalendarEvent> events;
+    private HashMap<String, CalendarEvent> events;
 
     public GuildCalendar(){
         events = new HashMap<>();
@@ -15,5 +16,15 @@ public class GuildCalendar {
 
     public void add(CalendarEvent e){
         events.put(e.getName(), e);
+    }
+
+    public void remove(String name){
+        events.remove(name);
+    }
+
+    public CalendarEvent[] toArr(){
+        Collection<CalendarEvent> values = events.values();
+        CalendarEvent[] returnValue = new CalendarEvent[values.size()];
+        return returnValue;
     }
 }
