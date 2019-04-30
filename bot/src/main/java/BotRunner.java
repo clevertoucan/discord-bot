@@ -40,9 +40,7 @@ public class BotRunner {
                 logger.warn("API Token empty, exiting...");
                 System.exit(-1);
             }
-            JDA jda = new JDABuilder(AccountType.BOT).setToken(token).build();
-
-            jda.addEventListener(new CalendarListenerImpl());
+            JDA jda = new JDABuilder(token).addEventListener(new CalendarListenerImpl()).build().awaitReady();
         } catch (Exception e){
             logger.error(e.getMessage());
         }

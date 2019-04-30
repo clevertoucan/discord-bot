@@ -25,6 +25,11 @@ public class GuildCalendar {
     public CalendarEvent[] toArr(){
         Collection<CalendarEvent> values = events.values();
         CalendarEvent[] returnValue = new CalendarEvent[values.size()];
+        values.toArray(returnValue);
         return returnValue;
+    }
+
+    public int size(){
+        return events.size();
     }
 }
