@@ -1,9 +1,10 @@
 package model;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 
-public class GuildCalendar {
+public class GuildCalendar implements Serializable {
     private HashMap<String, CalendarEvent> events;
 
     public GuildCalendar(){

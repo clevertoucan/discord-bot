@@ -4,11 +4,12 @@ import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.User;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 
-public class CalendarEvent implements Comparable<Date> {
+public class CalendarEvent implements Comparable<Date>, Serializable {
     private String name, description, location;
     private User creator;
     private Date start, end;
@@ -94,7 +95,16 @@ public class CalendarEvent implements Comparable<Date> {
 
     @Override
     public String toString() {
-        return name;
+        return "CalendarEvent{" +
+                "name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", location='" + location + '\'' +
+                ", creator=" + creator +
+                ", start=" + start +
+                ", end=" + end +
+                ", attendees=" + attendees +
+                ", absentees=" + absentees +
+                '}';
     }
 
     @Override
