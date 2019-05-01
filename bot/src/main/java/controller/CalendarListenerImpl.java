@@ -3,17 +3,18 @@ package controller;
 import model.CalendarEvent;
 import model.GuildCalendar;
 import model.MessageHandler;
+import net.dv8tion.jda.client.requests.restaction.pagination.MentionPaginationAction;
 import net.dv8tion.jda.core.entities.*;
+import net.dv8tion.jda.core.events.Event;
+import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.util.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Formatter;
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,10 +22,19 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private String cmdPrefix = ";";
     private MessageChannel out;
     private GuildCalendar calendar = new GuildCalendar();
+    private boolean eventCreateNameFlag = false;
     private CalendarEvent eventCreateDateFlag = null;
     private CalendarEvent[] eventRemoveFlag = null;
     private CalendarEvent[] rsvpGoingFlag= null, rsvpStayingFlag = null, viewEventFlag = null, pingEventFlag = null;
+    private CalendarEvent pingWaitingForMessageFlag = null;
     private Logger logger = LoggerFactory.getLogger("CalendarEventListener");
+
+    private String dateFormatString = "yyyy-MM-dd-hh:mm";
+
+    @Override
+    public void onReady(ReadyEvent event) {
+        event.getJDA().getPresence().setGame(Game.playing(cmdPrefix + "help for cmd list"));
+    }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
@@ -42,15 +52,15 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
                     //Handles all create-related commands (create event)
                     case "create":
+                        resetFlags();
                         String[] createArgs = {"event"};
                         if (args.length < 2) {
                             argsMsg(createArgs, event.getChannel());
                         } else {
                             if ("event".equals(args[1])) {
                                 if (args.length < 3) {
-                                    reply.append("Missing event name. Proper syntax is `")
-                                            .append(cmdPrefix)
-                                            .append("create event <eventName>");
+                                    reply.append("Please input a name for the event");
+                                    eventCreateNameFlag = true;
                                 } else {
                                     StringBuilder x = new StringBuilder();
                                     for (int i = 2; i < args.length; i++) {
@@ -60,8 +70,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                             x.append(args[i]).append(" ");
                                         }
                                     }
-                                    eventCreateDateFlag = new CalendarEvent(message.getAuthor(), x.toString());
-                                    reply.append("Please input a start time for the event in YYYY-MM-DD-hh:mm format");
+                                    if(calendar.contains(x.toString())){
+                                        reply.append("An active event already exists with that name. Please input a new name.");
+                                        eventCreateNameFlag = true;
+                                    } else {
+                                        eventCreateDateFlag = new CalendarEvent(message.getAuthor(), x.toString());
+                                        reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
+                                    }
                                 }
                             } else {
                                 argsMsg(createArgs, event.getChannel());
@@ -70,7 +85,8 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         break;
                     //Handles all settings
                     case "set":
-                        String[] setArgs = {"commandstring"};
+                        resetFlags();
+                        String[] setArgs = {"commandstring", "event", "dateformatstring"};
                         if (args.length < 2) {
                             argsMsg(setArgs, event.getChannel());
                         } else {
@@ -83,13 +99,59 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                     cmdPrefix = cat(args, 2);
                                     reply.append("Command String now set to `").append(cmdPrefix).append("`");
                                 }
-                            } else {
+                            } else if (args[1].equals("event")) {
+                                String[] setEventArgs = {"description", "start", "end", "location"};
+                                if (args.length < 3) {
+                                    argsMsg(setEventArgs, event.getChannel());
+                                } else {
+                                    Matcher m = Pattern.compile(".*\"(.*)\".*\"(.*)\"").matcher(messageContent);
+                                    String eventName, arg;
+                                    if (m.matches()) {
+                                        eventName = m.group(1);
+                                        CalendarEvent e = calendar.get(eventName);
+                                        if (e == null) {
+                                            reply.append("invalid event name");
+                                        } else {
+                                            arg = m.group(2);
+                                            if (args[2].equals("description")) {
+                                                e.setDescription(arg);
+                                                reply.append("Description Updated:\n");
+                                                viewEvent(e, event.getGuild(), reply);
+                                            } else if (args[2].equals("location")) {
+                                                e.setLocation((arg));
+                                                reply.append("Location Updated:\n");
+                                                viewEvent(e, event.getGuild(), reply);
+                                            } else if (args[2].equals("start")) {
+                                                Date d = parseDate(arg, reply);
+                                                if (d != null) {
+                                                    e.setStart(d);
+                                                    reply.append("Start Date Updated:\n");
+                                                    viewEvent(e, event.getGuild(), reply);
+                                                }
+                                            } else if (args[2].equals("end")) {
+                                                Date d = parseDate(arg, reply);
+                                                if (d != null) {
+                                                    e.setEnd(d);
+                                                    reply.append("End Date Updated:\n");
+                                                    viewEvent(e, event.getGuild(), reply);
+                                                }
+                                            }
+                                        }
+
+                                    }
+                                }
+                        } else if (args[1].equals("dateformatstring")){
+                            if(args.length < 3){
+                                dateFormatString = cat(args, 2);
+                            }
+                        } else {
                                 argsMsg(setArgs, event.getChannel());
                             }
                         }
                         break;
 
                     case "remove":
+                        resetFlags();
                         String[] removeArgs = {"event"};
                         if (args.length < 2) {
                             argsMsg(removeArgs, event.getChannel());
@@ -116,6 +178,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         break;
 
                     case "list":
+                        resetFlags();
                         String[] listArgs = {"events"};
                         if (args.length < 2) {
                             argsMsg(listArgs, event.getChannel());
@@ -127,6 +190,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         break;
 
                     case "rsvp":
+                        resetFlags();
                         if(calendar.size() > 0) {
                             String[] rsvpArgs = {"going", "notgoing"};
                             if (args.length < 2) {
@@ -153,6 +217,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         break;
 
                     case "view":
+                        resetFlags();
                         String[] viewArgs = {"event"};
                         if(args.length < 2){
                             argsMsg(viewArgs, event.getChannel());
@@ -177,8 +242,9 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         break;
                     // ping "event name" "message"
                     case "ping":
+                        resetFlags();
                         if(args.length < 2){
-                            reply.append("Which event would you like to ping?");
+                            reply.append("Which event would you like to ping?\n");
                             pingEventFlag = listEvents(reply);
                         } else {
                             Matcher m = Pattern.compile(".*\"(.*)\".*\"(.*)\"").matcher(messageContent);
@@ -187,53 +253,88 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                 String outMessage = m.group(2);
                                 CalendarEvent e = calendar.get(eventName);
                                 if(e != null){
-                                    
+                                    if(e.getAttendees().length > 0) {
+                                        if (outMessage != null) {
+                                            pingEvent(e, reply, outMessage);
+                                        } else {
+                                            reply.append("Unable to parse message. Syntax for `ping` is:\n")
+                                                    .append("`").append(cmdPrefix)
+                                                    .append("ping <\"event name\"> <\"message\">`");
+                                        }
+                                    } else {
+                                        reply.append("Event has no attendees - ping cancelled");
+                                    }
+                                } else {
+                                     reply.append("Unable to find event with that name; which event would you like to ping?\n");
+                                     pingEventFlag = listEvents(reply);
                                 }
+                            } else {
+                                reply.append("Unable to parse message. Syntax for `ping` is:\n")
+                                        .append("`").append(cmdPrefix)
+                                        .append("ping <\"event name\"> <\"message\">`");
                             }
                         }
+                        break;
+                    case "help":
+                        help(reply);
+                        break;
                     default:
 
                         break;
 
                 }
 
-            } else if (eventCreateDateFlag != null) {
-                try {
-                    Date d = new SimpleDateFormat("yyyy-MM-dd-hh:mm").parse(messageContent);
-                    if (d != null) {
-                        try {
-                            eventCreateDateFlag.setStart(d);
-                            calendar.add(eventCreateDateFlag);
-                            reply.append("Event `").append(eventCreateDateFlag.getName()).append("` successfully created.");
-                            eventCreateDateFlag = null;
-                        } catch (Exception e){
-                            reply.append("Unable to create event, see log for details");
-                            logger.error(e.getMessage());
-                        }
-                    }
-                } catch (ParseException e) {
-                    logger.error("Parsing error: null message (shouldn't be possible?)");
-                    logger.error(e.getMessage());
+            } else if(eventCreateNameFlag) {
+                if(calendar.contains(messageContent)){
+                    reply.append("An active event already exists with that name. Please input a new name.");
+                }else {
+                    CalendarEvent e = new CalendarEvent(event.getAuthor(), messageContent);
+                    eventCreateNameFlag = false;
+                    reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
+                    eventCreateDateFlag = e;
                 }
-
+            } else if (eventCreateDateFlag != null) {
+                Date d = parseDate(messageContent, reply);
+                if(d != null) {
+                    eventCreateDateFlag.setStart(d);
+                    calendar.add(eventCreateDateFlag);
+                    reply.append("Event `").append(eventCreateDateFlag.getName()).append("` successfully created.");
+                    eventCreateDateFlag = null;
+                }
             } else if (eventRemoveFlag != null) {
                 CalendarEvent e = eventLookup(messageContent, rsvpGoingFlag, reply);
                 if(e != null){
                     calendar.remove(e.getName());
+                    eventRemoveFlag = null;
                 }
             } else if(rsvpGoingFlag != null){
                 CalendarEvent e = eventLookup(messageContent, rsvpGoingFlag, reply);
                 if(e != null){
                     rsvpForEvent(true, event.getAuthor(), e.getName(), reply);
+                    rsvpGoingFlag = null;
                 }
             } else if(rsvpStayingFlag != null){
                 CalendarEvent e = eventLookup(messageContent, rsvpStayingFlag, reply);
                 if(e != null){
                     rsvpForEvent(false, event.getAuthor(), e.getName(), reply);
+                    rsvpStayingFlag = null;
                 }
             } else if(viewEventFlag != null){
                 CalendarEvent e = eventLookup(messageContent, viewEventFlag, reply);
-                viewEvent(e, event.getGuild(), reply);
+                if(e != null) {
+                    viewEvent(e, event.getGuild(), reply);
+                    viewEventFlag = null;
+                }
+            } else if(pingEventFlag != null){
+                CalendarEvent e = eventLookup(messageContent, pingEventFlag, reply);
+                if(e != null) {
+                    reply.append("What would you like your message to say?");
+                    pingWaitingForMessageFlag = e;
+                    pingEventFlag = null;
+                }
+            } else if(pingWaitingForMessageFlag != null){
+                pingEvent(pingWaitingForMessageFlag, reply, messageContent);
+                pingWaitingForMessageFlag = null;
             }
 
             if (reply.length() > 0) {
@@ -242,15 +343,25 @@ public class CalendarListenerImpl extends ListenerAdapter {
         }
     }
 
+    private void pingEvent(CalendarEvent calendarEvent, StringBuilder reply, String msg){
+        for(User u:calendarEvent.getAttendees()){
+            reply.append(u.getAsMention()).append(" ");
+        }
+        reply.append("\n").append(msg);
+    }
+
     private void viewEvent(CalendarEvent e, Guild guild, StringBuilder reply){
         if(e != null){
             reply.append("```Name: ").append(e.getName()).append("\n");
             if(e.getDescription() != null){
                 reply.append("Description: ").append(e.getDescription()).append("\n");
             }
-            reply.append("Start Date: ").append(e.getStart()).append("\n");
+            if(e.getLocation() != null){
+                reply.append("Location: ").append(e.getLocation()).append("\n");
+            }
+            reply.append("Start Time: ").append(e.getStart()).append("\n");
             if(e.getEnd() != null){
-                reply.append("End Date: ").append(e.getEnd()).append("\n");
+                reply.append("End Time: ").append(e.getEnd()).append("\n");
             }
             reply.append("Attendees: ");
             User[] attendees = e.getAttendees();
@@ -262,6 +373,34 @@ public class CalendarListenerImpl extends ListenerAdapter {
             reply.append("\n");
             reply.append("```");
         }
+    }
+
+    private void help(StringBuilder reply){
+        reply.append("```").append(cmdPrefix).append("create event <name> - creates an event\n\n")
+                .append(cmdPrefix).append("set commandstring <new cmdstring> - sets the command prefix\n\n")
+                .append(cmdPrefix).append("set dateformatstring <new dateFormatString> - sets the date formatting pattern. See Java Date documentation\n\n")
+                .append(cmdPrefix).append("set event description/location/start/end <\"event name\"> <\"arg\"> - modify various attributes of an event\n\n")
+                .append(cmdPrefix).append("remove event <event name> - removes a specified event\n\n")
+                .append(cmdPrefix).append("list events - lists all currently active events")
+                .append(cmdPrefix).append("view event <event name> - view all event information\n\n")
+                .append(cmdPrefix).append("ping <\"event name\"> <\"message\"> - pings all users going to an event with the specified message")
+                .append("```");
+    }
+
+    private Date parseDate(String s, StringBuilder reply){
+        try {
+            Date d = new SimpleDateFormat(dateFormatString).parse(s);
+            if(d == null){
+                reply.append("Unable to parse date. Format must be `").append(dateFormatString)
+                        .append("`. To change format string, use `").append(cmdPrefix).append("set dateformatstring`.");
+            }
+            return d;
+        } catch (ParseException ex) {
+            logger.error("Parsing error: null message (shouldn't be possible?)");
+            logger.error(ex.getMessage());
+            reply.append("Parsing error (tell josh)");
+        }
+        return null;
     }
 
     private String getFormattedUserList(User[] list, Guild g){
@@ -281,7 +420,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
             }
             reply.append(name);
             if(i < list.length - 1){
-                reply.append(",");
+                reply.append(", ");
             }
         }
         return reply.toString();
@@ -319,6 +458,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private CalendarEvent[] listEvents(StringBuilder reply){
         CalendarEvent[] events = calendar.toArr();
         if(events.length > 0) {
+            Arrays.sort(events);
             int maxwidth = 0;
             for(CalendarEvent e : events){
                 if(e.getName().length() > maxwidth){
@@ -327,7 +467,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
             }
             reply.append("```");
             Formatter formatter = new Formatter(reply, Locale.US);
-            String formatString = "[%s]\t%-" + maxwidth + "." + maxwidth + "s\t%s\n";
+            String formatString = "[%s]  %-" + maxwidth + "." + maxwidth + "s  %s\n";
             for (int i = 0; i < events.length; i++) {
                 formatter.format(formatString, i, events[i].getName(), events[i].getStart());
             }
@@ -338,18 +478,19 @@ public class CalendarListenerImpl extends ListenerAdapter {
         return events;
     }
 
-    void argsMsg(String[] requiredArgs, MessageChannel c){
+    private void argsMsg(String[] requiredArgs, MessageChannel c){
         StringBuilder possibleArgs = new StringBuilder();
-        for(String s : requiredArgs){
-            possibleArgs.append("\t").append(s).append("\n");
+        for(int i = 0; i < requiredArgs.length; i++){
+            possibleArgs.append(requiredArgs[i]);
+            if(i < requiredArgs.length - 1){
+                possibleArgs.append(", ");
+            }
         }
-        c.sendMessage(
-                "Missing required arguments\n" +
-                        "Possible arguments:\n" +
-                        possibleArgs).queue();
+        c.sendMessage("```Missing required arguments\n" +
+                "Possible arguments: " + possibleArgs + "```").queue();
     }
 
-    void removeEvent(StringBuilder reply, String eventName){
+    private void removeEvent(StringBuilder reply, String eventName){
         try{
             calendar.remove(eventName);
             reply.append("Removed event `").append(eventName).append("`");
@@ -359,7 +500,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
         }
     }
 
-    void rsvpForEvent(boolean going, User user, String eventName, StringBuilder reply){
+    private void rsvpForEvent(boolean going, User user, String eventName, StringBuilder reply){
         CalendarEvent e = calendar.get(eventName);
         if(going) {
             e.rsvpGoing(user);
@@ -368,5 +509,16 @@ public class CalendarListenerImpl extends ListenerAdapter {
             e.rsvpNotGoing(user);
             reply.append("You have successfully anti-rsvp'd for `").append(e).append("`");
         }
+    }
+
+    private void resetFlags(){
+        eventCreateNameFlag = false;
+        eventCreateDateFlag = null;
+        eventRemoveFlag = null;
+        rsvpGoingFlag= null;
+        rsvpStayingFlag = null;
+        viewEventFlag = null;
+        pingEventFlag = null;
+        pingWaitingForMessageFlag = null;
     }
 }

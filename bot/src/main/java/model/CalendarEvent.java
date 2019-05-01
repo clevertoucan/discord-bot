@@ -2,13 +2,14 @@ package model;
 
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.User;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 
-public class CalendarEvent {
-    private String name, description;
+public class CalendarEvent implements Comparable<Date> {
+    private String name, description, location;
     private User creator;
     private Date start, end;
     private HashSet<User> attendees, absentees;
@@ -83,8 +84,21 @@ public class CalendarEvent {
         this.end = end;
     }
 
+    public String getLocation(){
+        return location;
+    }
+
+    public void setLocation(String loc){
+        location = loc;
+    }
+
     @Override
     public String toString() {
         return name;
+    }
+
+    @Override
+    public int compareTo(@NotNull Date o) {
+        return start.compareTo(o);
     }
 }

@@ -29,6 +29,10 @@ public class GuildCalendar {
         return returnValue;
     }
 
+    public boolean contains(String s){
+        return events.containsKey(s);
+    }
+
     public int size(){
         return events.size();
     }
