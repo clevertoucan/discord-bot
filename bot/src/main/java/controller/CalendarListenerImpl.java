@@ -171,6 +171,8 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                 }
                         } else if (args[1].equals("dateformatstring")){
                             if(args.length < 3){
+                                reply.append("Format string missing");
+                            } else {
                                 String s = cat(args, 2);
                                 setDateFormatString(s, reply);
                             }
