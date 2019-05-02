@@ -313,8 +313,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
                     //Temp debug functions
 
                     case "owner":
-                        ownerID = event.getAuthor().getId();
-                        persistence.addObject("owner", ownerID);
+                        if(ownerID == null || event.getAuthor().getId().equals(ownerID)) {
+                            ownerID = event.getAuthor().getId();
+                            persistence.addObject("owner", ownerID);
+                        } else{
+                            reply.append("The owner has already been set");
+                        }
+                        break;
                     case "shutdown":
                         if(event.getAuthor().getId().equals(ownerID)){
                             event.getChannel().sendMessage("Shutting down").complete();
@@ -322,6 +327,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         } else {
                             reply.append("Only Josh can do that, dingus");
                         }
+                        break;
                     default:
 
                         break;
