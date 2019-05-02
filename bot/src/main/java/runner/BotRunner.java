@@ -1,3 +1,5 @@
+package runner;
+
 import controller.CalendarListenerImpl;
 import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
@@ -18,8 +20,9 @@ import java.util.Date;
  */
 public class BotRunner {
     private static SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-d");
+    public static JDA globalJDA;
     public static void main(String[] args){
-        Logger logger = LoggerFactory.getLogger("BotRunner");
+        Logger logger = LoggerFactory.getLogger("runner.BotRunner");
 
         try{
             /*
@@ -40,9 +43,9 @@ public class BotRunner {
                 logger.warn("API Token empty, exiting...");
                 System.exit(-1);
             }
-            JDA jda = new JDABuilder(token).addEventListener(new CalendarListenerImpl()).build().awaitReady();
+            globalJDA = new JDABuilder(token).addEventListener(new CalendarListenerImpl()).build().awaitReady();
         } catch (Exception e){
-            logger.error(e.getMessage());
+            logger.error("CRITICAL - Unspecified error", e);
         }
 
     }

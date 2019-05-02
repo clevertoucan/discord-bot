@@ -5,11 +5,13 @@ import model.GuildCalendar;
 import model.MessageHandler;
 import model.Persistence;
 import net.dv8tion.jda.client.requests.restaction.pagination.MentionPaginationAction;
+import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.Event;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.core.managers.Presence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private CalendarEvent[] rsvpGoingFlag= null, rsvpStayingFlag = null, viewEventFlag = null, pingEventFlag = null;
     private CalendarEvent pingWaitingForMessageFlag = null;
     private Logger logger = LoggerFactory.getLogger("CalendarEventListener");
+    private String ownerID;
 
     private String dateFormatString;
 
@@ -53,11 +56,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
             persistence.addObject("calendar", calendar);
         }
 
+        ownerID = persistence.read(String.class, "owner");
+
     }
 
     @Override
     public void onReady(ReadyEvent event) {
-        event.getJDA().getPresence().setGame(Game.playing(cmdPrefix + "help for cmd list"));
+        updatePlayingMessage(event.getJDA().getPresence());
     }
 
     @Override
@@ -98,7 +103,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                         reply.append("An active event already exists with that name. Please input a new name.");
                                         eventCreateNameFlag = true;
                                     } else {
-                                        eventCreateDateFlag = new CalendarEvent(message.getAuthor(), x.toString());
+                                        eventCreateDateFlag = new CalendarEvent(message.getAuthor().getId(), x.toString());
                                         reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
                                     }
                                 }
@@ -121,7 +126,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                             .append("set commandstring <newCmdString>`");
                                 } else {
                                     String c = cat(args, 2);
-                                    setCommandString(c, reply);
+                                    setCommandString(c, event.getJDA().getPresence(), reply);
                                 }
                             } else if (args[1].equals("event")) {
                                 String[] setEventArgs = {"description", "start", "end", "location"};
@@ -303,6 +308,18 @@ public class CalendarListenerImpl extends ListenerAdapter {
                     case "help":
                         help(reply);
                         break;
+                    //Temp debug functions
+
+                    case "owner":
+                        ownerID = event.getAuthor().getId();
+                        persistence.addObject("owner", ownerID);
+                    case "shutdown":
+                        if(event.getAuthor().getId().equals(ownerID)){
+                            event.getChannel().sendMessage("Shutting down").complete();
+                            System.exit(1);
+                        } else {
+                            reply.append("Only Josh can do that, dingus");
+                        }
                     default:
 
                         break;
@@ -313,7 +330,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 if(calendar.contains(messageContent)){
                     reply.append("An active event already exists with that name. Please input a new name.");
                 }else {
-                    CalendarEvent e = new CalendarEvent(event.getAuthor(), messageContent);
+                    CalendarEvent e = new CalendarEvent(event.getAuthor().getId(), messageContent);
                     eventCreateNameFlag = false;
                     reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
                     eventCreateDateFlag = e;
@@ -367,9 +384,10 @@ public class CalendarListenerImpl extends ListenerAdapter {
         }
     }
 
-    private void setCommandString(String s, StringBuilder reply){
+    private void setCommandString(String s, Presence p, StringBuilder reply){
         cmdPrefix = s;
         persistence.addObject("commandprefix", cmdPrefix);
+        updatePlayingMessage(p);
         reply.append("Command String now set to `").append(cmdPrefix).append("`");
         logger.info("Command Prefix set to " + s);
     }
@@ -554,14 +572,18 @@ public class CalendarListenerImpl extends ListenerAdapter {
         if(going) {
             e.rsvpGoing(user);
             persistence.addObject("calendar", calendar);
-            reply.append("You have successfully rsvp'd for `").append(e).append("`");
+            reply.append("You have successfully rsvp'd for `").append(e.getName()).append("`");
             logger.info("User " + user + " has rsvp'd 'going' for event " + e);
         } else {
             e.rsvpNotGoing(user);
             persistence.addObject("calendar", calendar);
-            reply.append("You have successfully anti-rsvp'd for `").append(e).append("`");
+            reply.append("You have successfully anti-rsvp'd for `").append(e.getName()).append("`");
             logger.info("User " + user + " has rsvp'd 'not going' for event " + e);
         }
+    }
+
+    private void updatePlayingMessage(Presence p){
+        p.setGame(Game.playing(cmdPrefix + "help for cmd list"));
     }
 
     private void resetFlags(){

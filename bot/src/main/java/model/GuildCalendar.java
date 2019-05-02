@@ -37,4 +37,11 @@ public class GuildCalendar implements Serializable {
     public int size(){
         return events.size();
     }
+
+    @Override
+    public String toString() {
+        return "GuildCalendar{" +
+                "events=" + events +
+                '}';
+    }
 }

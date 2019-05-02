@@ -16,30 +16,39 @@ import java.util.HashSet;
 public class Persistence {
     private static Persistence instance;
     private HashMap<String, Serializable> saveData = new HashMap<>();
-    private FileOutputStream fout;
-    private ObjectOutputStream out;
-    private FileInputStream fin;
-    private ObjectInputStream in;
+    File saveFile;
     private Logger logger;
 
-    public static Persistence getInstance(){
-        if(instance == null){
+    public static Persistence getInstance() {
+        if (instance == null) {
             instance = new Persistence();
         }
         return instance;
     }
 
-    public void updateObject(String key, Serializable value){
-        saveData.put(key, value);
-        save();
+    private Persistence() {
+        logger = LoggerFactory.getLogger("Persistence");
+
+        try {
+            saveFile = new File("savestate");
+            if (!saveFile.exists()) {
+                saveFile.createNewFile();
+            }
+            load();
+            save();
+
+        } catch (IOException e) {
+            logger.error("CRITICAL: Exception in Persistence module", e);
+            logger.error("Exiting");
+            System.exit(-1);
+        }
     }
 
     @SuppressWarnings("unchecked")
     public <T extends  Serializable> T read(Class<T> clazz, String key) {
-        load();
         Serializable o1 = saveData.get(key);
         T value = null;
-        if (o1.getClass() == clazz) {
+        if (o1 != null && o1.getClass() == clazz) {
             value = (T) o1;
         }
         return value;
@@ -47,57 +56,46 @@ public class Persistence {
 
     public void addObject(String key, Serializable value){
         saveData.put(key, value);
-        save();
+        boolean saved = save();
+        if(saved) {
+            logger.debug("Saved Object: " + key + " with contents: " + value);
+        } else {
+            logger.debug("Unable to save Object: " + key + " with contents: " + value);
+        }
     }
 
-    private void save(){
+    private boolean save(){
         try{
+            FileOutputStream fout = new FileOutputStream(saveFile);
+            ObjectOutputStream out = new ObjectOutputStream(fout);
             out.writeObject(saveData);
+            out.close();
+            fout.close();
+            return true;
         } catch(IOException e){
             logger.warn("Unable to write savedata");
+            return false;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void load(){
+    public void load(){
         try {
+            FileInputStream fin = new FileInputStream(saveFile);
+            ObjectInputStream in = new ObjectInputStream(fin);
             Object o = in.readObject();
+            in.close();
+            fin.close();
             if(o.getClass() == saveData.getClass()){
-                saveData = (HashMap<String, Serializable>) in.readObject();
+                saveData = (HashMap<String, Serializable>) o;
                 for(String s : saveData.keySet());
                 for(Serializable s : saveData.values());
+                logger.debug("Loaded savedata: " + saveData);
             }
         } catch (ClassNotFoundException | ClassCastException | IOException e){
-            logger.warn("Unable to read savedata");
+            logger.warn("Unable to read savedata", e);
         }
     }
 
-    private Persistence() {
-        logger = LoggerFactory.getLogger("Persistence");
-
-        try {
-            File f = new File("savestate");
-            if(!f.exists()) {
-                f.createNewFile();
-            }
-
-            fin = new FileInputStream(f);
-            in = new ObjectInputStream(fin);
-
-            load();
-
-            fout = new FileOutputStream(f);
-            out = new ObjectOutputStream(fout);
-
-            save();
-
-        } catch(IOException e){
-                logger.error("CRITICAL: Exception in Persistence module");
-                logger.error(e.getMessage());
-                logger.error("Exiting");
-                System.exit(-1);
-            }
-        }
-
-    }
+}
 
