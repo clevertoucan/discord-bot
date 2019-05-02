@@ -11,16 +11,18 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Objects;
 
 import runner.BotRunner;
 
 public class CalendarEvent implements Comparable<CalendarEvent>, Serializable {
-    private String name, description, location, creatorID;
+    private String name, description, location;
+    private UserWrapper creator;
     private Date start, end;
-    private HashSet<String> attendees, absentees;
+    private HashSet<UserWrapper> attendees, absentees;
 
-    public CalendarEvent(String cID, String n){
-        creatorID = cID;
+    public CalendarEvent(User c, String n){
+        creator = new UserWrapper(c);
         name = n;
         attendees = new HashSet<>();
         absentees = new HashSet<>();
@@ -29,21 +31,22 @@ public class CalendarEvent implements Comparable<CalendarEvent>, Serializable {
 
 
     public void rsvpGoing(User user){
-        absentees.remove(user.getId());
-        attendees.add(user.getId());
+        UserWrapper x = new UserWrapper(user);
+        absentees.remove(x);
+        attendees.add(x);
     }
 
     public void rsvpNotGoing(User user){
-        attendees.remove(user.getId());
-        absentees.add(user.getId());
+        UserWrapper x = new UserWrapper(user);
+        attendees.remove(x);
+        absentees.add(x);
     }
 
     public User[] getAttendees(){
         User[] x = new User[attendees.size()];
         int i = 0;
-        for(String s : attendees){
-            User u = BotRunner.globalJDA.retrieveUserById(s).complete();
-            x[i] = u;
+        for(UserWrapper w : attendees){
+            x[i] = w.user;
             i++;
         }
         return x;
@@ -52,9 +55,8 @@ public class CalendarEvent implements Comparable<CalendarEvent>, Serializable {
     public User[] getAbsentees(){
         User[] x = new User[absentees.size()];
         int i = 0;
-        for(String s : absentees){
-            User u = BotRunner.globalJDA.retrieveUserById(s).complete();
-            x[i] = u;
+        for(UserWrapper w : absentees){
+            x[i] = w.user;
             i++;
         }
         return x;
@@ -106,7 +108,7 @@ public class CalendarEvent implements Comparable<CalendarEvent>, Serializable {
                 "name='" + name + '\'' +
                 ", description='" + description + '\'' +
                 ", location='" + location + '\'' +
-                ", creatorID=" + creatorID +
+                ", creator=" + creator +
                 ", start=" + start +
                 ", end=" + end +
                 ", attendees=" + attendees +
@@ -117,5 +119,41 @@ public class CalendarEvent implements Comparable<CalendarEvent>, Serializable {
     @Override
     public int compareTo(@NotNull CalendarEvent o) {
         return start.compareTo(o.start);
+    }
+
+    private class UserWrapper implements Serializable{
+        private User user;
+
+        UserWrapper(User u){
+            user = u;
+        }
+
+        private void readObject(ObjectInputStream in) throws IOException {
+            user = BotRunner.globalJDA.retrieveUserById(in.readUTF()).complete();
+        }
+
+        private void writeObject(ObjectOutputStream out) throws  IOException {
+            out.writeUTF(user.getId());
+        }
+
+        @Override
+        public String toString() {
+            return "UserWrapper{" +
+                    "user=" + user +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            UserWrapper that = (UserWrapper) o;
+            return Objects.equals(user, that.user);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(user);
+        }
     }
 }

@@ -79,7 +79,7 @@ public class Persistence {
     }
 
     @SuppressWarnings("unchecked")
-    public void load(){
+    private void load(){
         try {
             FileInputStream fin = new FileInputStream(saveFile);
             ObjectInputStream in = new ObjectInputStream(fin);
@@ -93,7 +93,7 @@ public class Persistence {
                 logger.debug("Loaded savedata: " + saveData);
             }
         } catch (ClassNotFoundException | ClassCastException | IOException e){
-            logger.warn("Unable to read savedata", e);
+            logger.warn("Unable to read savedata");
         }
     }
 

@@ -103,7 +103,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                         reply.append("An active event already exists with that name. Please input a new name.");
                                         eventCreateNameFlag = true;
                                     } else {
-                                        eventCreateDateFlag = new CalendarEvent(message.getAuthor().getId(), x.toString());
+                                        eventCreateDateFlag = new CalendarEvent(event.getAuthor(), x.toString());
                                         reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
                                     }
                                 }
@@ -338,7 +338,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 if(calendar.contains(messageContent)){
                     reply.append("An active event already exists with that name. Please input a new name.");
                 }else {
-                    CalendarEvent e = new CalendarEvent(event.getAuthor().getId(), messageContent);
+                    CalendarEvent e = new CalendarEvent(event.getAuthor(), messageContent);
                     eventCreateNameFlag = false;
                     reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
                     eventCreateDateFlag = e;

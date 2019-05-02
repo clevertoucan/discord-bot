@@ -43,7 +43,9 @@ public class BotRunner {
                 logger.warn("API Token empty, exiting...");
                 System.exit(-1);
             }
-            globalJDA = new JDABuilder(token).addEventListener(new CalendarListenerImpl()).build().awaitReady();
+            globalJDA = new JDABuilder(token).build().awaitReady();
+            
+            globalJDA.addEventListener(new CalendarListenerImpl());
         } catch (Exception e){
             logger.error("CRITICAL - Unspecified error", e);
         }
