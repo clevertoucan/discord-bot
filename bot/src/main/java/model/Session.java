@@ -11,45 +11,30 @@ import java.util.HashMap;
 import java.util.Objects;
 
 public class Session {
-    private Signature signature;
+    String flag;
+    private Context context;
     private Date creationTime;
-    private HashMap<String, Serializable> sessionData;
 
-    public Session(@NotNull User user, MessageChannel channel, Guild guild) {
-        signature = new Signature(user.getId(), channel.getId(), guild.getId());
+    public Session(Context c, String flag){
+        context = c;
         creationTime = new Date();
-        sessionData = new HashMap<>();
-    }
-
-    public Session(Signature s){
-        signature = s;
-        creationTime = new Date();
-        sessionData = new HashMap<>();
+        this.flag = flag;
     }
 
     public Date getCreationTime(){
         return creationTime;
     }
 
-    public void reset(){
-        sessionData = new HashMap<>();
+    public Context getContext(){
+        return context;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends Serializable> T getSessionData(Class<T> clazz, String key){
-        Serializable s = sessionData.get(key);
-        if(s != null && s.getClass() == clazz){
-            return (T)s;
-        }
-        else return null;
+    public String getFlag(){
+        return flag;
     }
 
-    public void addSessionData(String key, Serializable data){
-        sessionData.put(key, data);
-    }
-
-    public void removeSessionData(String key){
-        sessionData.remove(key);
+    public void setFlag(String flag){
+        this.flag = flag;
     }
 
     @Override
@@ -57,12 +42,12 @@ public class Session {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Session session = (Session) o;
-        return Objects.equals(signature, session.signature) &&
+        return Objects.equals(context.getSignature(), session.context.getSignature()) &&
                 Objects.equals(creationTime, session.creationTime);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(signature, creationTime);
+        return Objects.hash(context.getSignature(), creationTime);
     }
 }
