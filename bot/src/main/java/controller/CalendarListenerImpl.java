@@ -24,11 +24,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private String cmdPrefix;
     private GuildCalendar calendar;
     private Logger logger = LoggerFactory.getLogger("CalendarEventListener");
-    HashMap<Signature, Session> sessions;
+    private HashMap<Signature, Session> sessions;
     private String ownerID;
 
     private String dateFormatString;
 
+
+    //TODO: Remove message history
     public CalendarListenerImpl(){
         persistence = Persistence.getInstance();
         cmdPrefix = persistence.read(String.class, "commandprefix");
@@ -459,10 +461,12 @@ public class CalendarListenerImpl extends ListenerAdapter {
     }
 
     private Session addSession(Signature sig, String key, Serializable data){
-        Session s = new Session(sig);
-        s.addSessionData(key, data);
-        sessions.put(sig, s);
-        return s;
+        if(data != null) {
+            Session s = new Session(sig);
+            s.addSessionData(key, data);
+            sessions.put(sig, s);
+            return s;
+        } else return null;
     }
 
     private void help(StringBuilder reply){
@@ -527,21 +531,25 @@ public class CalendarListenerImpl extends ListenerAdapter {
         return x.toString();
     }
 
-    private CalendarEvent eventLookup(String s, CalendarEvent[] e, StringBuilder reply){
+    private CalendarEvent eventLookup(String s, CalendarEvent[] events, StringBuilder reply){
         int x;
-        try {
-            x = Integer.parseInt(s);
-            if(x >= e.length){
-                reply.append("Index out of range");
+        CalendarEvent e = calendar.get(s);
+        if(e == null){
+            try {
+                x = Integer.parseInt(s);
+                if (x >= events.length) {
+                    reply.append("Index out of range");
+                    return null;
+                }
+                e = events[x];
+            } catch (NumberFormatException ex) {
+                logger.info("Bad integer parse");
+                logger.info(ex.getMessage());
+
                 return null;
             }
-            return e[x];
-        } catch(NumberFormatException ex){
-            logger.info("Bad integer parse");
-            logger.info(ex.getMessage());
-
-            return null;
         }
+        return e;
     }
 
     private CalendarEvent[] listEvents(StringBuilder reply){
@@ -564,6 +572,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
             reply.append("```");
         } else {
             reply.append("No events to display");
+            return null;
         }
         return events;
     }
