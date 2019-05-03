@@ -11,21 +11,21 @@ import java.util.HashMap;
 
 public class Context implements Serializable {
     private Signature signature;
-    private StringBuilder reply;
     private JDA jda;
     private HashMap<String, Serializable> data;
+    private MessageHistory messageHistory;
 
 
     public String commandString, dateFormatString, eventName, pingMessageContent, description, location;
     public CalendarEvent event;
     public CalendarEvent[] events;
-    public Boolean rsvpGoing;
+    public Boolean rsvpGoing, messageDeleteOn;
     public Date date;
 
-    public Context(Signature signature, StringBuilder reply, JDA jda) {
+    public Context(Signature signature, JDA jda) {
         this.signature = signature;
-        this.reply = reply;
         this.jda = jda;
+        messageHistory = new MessageHistory();
         data = new HashMap<>();
     }
 
@@ -70,15 +70,15 @@ public class Context implements Serializable {
         return signature.channelID;
     }
 
-    public StringBuilder getReply() {
-        return reply;
-    }
-
-    public void setReply(StringBuilder reply) {
-        this.reply = reply;
-    }
-
     public Signature getSignature(){
         return  signature;
+    }
+
+    public MessageHistory getMessageHistory() {
+        return messageHistory;
+    }
+
+    public void setMessageHistory(MessageHistory messageHistory) {
+        this.messageHistory = messageHistory;
     }
 }
