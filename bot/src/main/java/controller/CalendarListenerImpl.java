@@ -3,6 +3,7 @@ package controller;
 import model.*;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.*;
+import net.dv8tion.jda.core.entities.MessageHistory;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
@@ -10,6 +11,7 @@ import net.dv8tion.jda.core.managers.Presence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.*;
 import java.util.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -22,14 +24,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private GuildCalendar calendar;
     private Logger logger = LoggerFactory.getLogger("CalendarEventListener");
     private HashMap<Signature, Session> sessions;
-    private String ownerID;
+    private ArrayList<String> baharQuotes = new ArrayList<>();
+    private String ownerID, baharID;
 
     private String dateFormatString;
     private Boolean cleanup = false;
     private StringBuilder reply = new StringBuilder();
 
-
-    //TODO: Remove message history
     public CalendarListenerImpl(){
         persistence = Persistence.getInstance();
         cmdPrefix = persistence.read(String.class, "commandprefix");
@@ -56,12 +57,31 @@ public class CalendarListenerImpl extends ListenerAdapter {
         }
         ownerID = persistence.read(String.class, "owner");
 
+        File quotes = new File("BaharQuotes");
+        if(quotes.exists()){
+            try {
+                BufferedReader reader = new BufferedReader(new FileReader(quotes));
+                while(reader.ready()){
+                    baharQuotes.add(reader.readLine());
+                }
+            } catch (IOException e){
+                logger.error("IOException", e);
+            }
+        }
+        /*
+        baharQuotes = persistence.read(HashSet.class, "baharQuotes");
+        if(baharQuotes == null){
+            baharQuotes = new HashSet<>();
+        }
+        */
+
         sessions = new HashMap<>();
 
     }
 
     @Override
     public void onReady(ReadyEvent event) {
+        logger.info("in onReady");
         updatePlayingMessage(event.getJDA().getPresence());
     }
 
@@ -361,6 +381,51 @@ public class CalendarListenerImpl extends ListenerAdapter {
                             System.exit(1);
                         } else {
                             reply.append("Only Josh can do that, dingus");
+                        }
+                        break;
+
+                    case "baharquote":
+                        Random rand = new Random();
+                        int index = rand.nextInt(baharQuotes.size());
+                        reply.append(baharQuotes.get(index));
+                        break;
+                    case "bahar":
+                        logger.info("Retrieving bahar quotes");
+                        if(baharQuotes.isEmpty()) {
+                            List<Guild> guilds = event.getJDA().getGuilds();
+                            for (Guild g : guilds) {
+                                if (g.isMember(event.getJDA().getUserById(baharID))) {
+                                    for (MessageChannel messageChannel : g.getTextChannels()) {
+                                        for (Message m : messageChannel.getIterableHistory()) {
+                                            if (m.getAuthor().getId().equals(baharID) && m.getReactions().size() > 0) {
+                                                baharQuotes.add(m.getContentRaw());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            logger.info("Writing Bahar Quotes");
+                            File quotes = new File("BaharQuotes");
+                            boolean exists = quotes.exists();
+                            if (!exists) {
+                                try {
+                                    exists = quotes.createNewFile();
+                                } catch (IOException e) {
+                                    logger.error("bahar quotes error", e);
+                                }
+                            }
+                            if (exists) {
+                                try {
+                                    BufferedWriter writer = new BufferedWriter(new FileWriter(quotes, true));
+                                    for (String s : baharQuotes) {
+                                        writer.append(s).append("\n");
+                                    }
+                                    writer.close();
+                                } catch (IOException e) {
+                                    logger.error("bahar quotes error", e);
+                                }
+                            }
+                            logger.info("Finished Bahar Quotes");
                         }
                         break;
                     default:
