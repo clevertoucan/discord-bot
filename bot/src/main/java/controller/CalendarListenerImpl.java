@@ -66,6 +66,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
     }
 
     //TODO: Add "set event ping <"eventName"> <"timeBeforeEvent"> <"customMessage"> ", add "set verbose on/off"
+    //TODO: Limit sensitive operations to server admins
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         if(event.getAuthor() != event.getJDA().getSelfUser()) {
