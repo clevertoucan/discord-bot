@@ -71,7 +71,6 @@ public class CalendarListenerImpl extends ListenerAdapter {
             Session session;
             Signature sig = new Signature(event.getAuthor(), event.getChannel(), event.getGuild());
             Context context = new Context(sig, event.getJDA());
-            context.getMessageHistory().addMessage(event.getMessage());
             session = sessions.get(sig);
 
             Message message = event.getMessage();
@@ -79,6 +78,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
             boolean isCommand = Pattern.compile("\\Q" + cmdPrefix + "\\E.+").matcher(messageContent).matches();
 
             if (isCommand) {
+                context.getMessageHistory().addMessage(event.getMessage());
                 messageContent = messageContent.substring(cmdPrefix.length());
                 String[] args = messageContent.split(" ");
                 session = null;
@@ -139,6 +139,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                         if (e == null) {
                                             reply.append("invalid event name");
                                         } else {
+                                            context.event = e;
                                             arg = m.group(2);
                                             switch (args[2]) {
                                                 case "description":
@@ -182,15 +183,22 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                 reply.append("Missing `on`/`off`");
                             } else {
                                 if(args[2].equals("on")){
-                                    List<Permission> permissions = context.getGuild().getMember(context.getUser())
+                                    List<Permission> permissions = context.getGuild().getMember(event.getJDA().getSelfUser())
                                             .getPermissions(context.getChannel());
                                     for(Permission p : permissions){
                                         if(p.equals(Permission.MESSAGE_MANAGE)){
                                             context.messageDeleteOn = true;
-                                            processEvent(context, this::setDeleteUserMessages);
                                         }
                                     }
-                                    if(!cleanup) {
+                                    permissions = context.getGuild().getMember(event.getJDA().getSelfUser()).getPermissions();
+                                    for(Permission p : permissions){
+                                        if(p.equals(Permission.MESSAGE_MANAGE)){
+                                            context.messageDeleteOn = true;
+                                        }
+                                    }
+                                    if(context.messageDeleteOn != null && context.messageDeleteOn) {
+                                        processEvent(context, this::setDeleteUserMessages);
+                                    }else {
                                         reply.append("Cannot turn on cleanup: need `Manage Messages` permission");
                                     }
                                 } else if(args[2].equals("off")){
@@ -224,7 +232,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                         context.events = listEvents();
                                         addSession(context, "removeEvent");
                                     } else {
-                                        context.eventName = eventName;
+                                        context.event = calendar.get(eventName);
                                         processEvent(context, this::removeEvent);
                                     }
                                 }
@@ -258,7 +266,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                         context.events = listEvents();
                                         addSession(context, "rsvpEvent");
                                     } else {
-                                        context.eventName = cat(args, 2);
+                                        context.event= calendar.get(cat(args, 2));
                                         processEvent(context, this::rsvpForEvent);
                                     }
                                 }
@@ -359,6 +367,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
             } if(session != null) {
                 context = session.getContext();
+                context.getMessageHistory().addMessage(event.getMessage());
                 switch (session.getFlag()) {
                     case "createEventName":
                         if (calendar.contains(messageContent)) {
@@ -435,7 +444,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 .append(" on ").append(new Date()).append("```\n");
 
         if(cleanup != null && cleanup) {
-            c.getMessageHistory().clearMessageHistory();
+            c.clearMessageHistory();
         }
     }
 
@@ -499,6 +508,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
         calendar.add(e);
         persistence.addObject("calendar", calendar);
         reply.append("Event `").append(e.getName()).append("` successfully created.\n");
+        viewEvent(c);
         logger.info("Created event: " + e);
         return true;
     }
@@ -572,7 +582,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 .append(cmdPrefix).append("set cleanup <on/off> - when user message deletion is on, the bot will automatically clean up commands from users\n\n")
                 .append(cmdPrefix).append("set event description/location/start/end <\"event name\"> <\"arg\"> - modify various attributes of an event\n\n")
                 .append(cmdPrefix).append("remove event <event name> - removes a specified event\n\n")
-                .append(cmdPrefix).append("list events - lists all currently active events")
+                .append(cmdPrefix).append("list events - lists all currently active events\n\n")
                 .append(cmdPrefix).append("view event <event name> - view all event information\n\n")
                 .append(cmdPrefix).append("ping <\"event name\"> <\"message\"> - pings all users going to an event with the specified message")
                 .append("```\n");
@@ -684,34 +694,30 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
     private boolean removeEvent(Context c){
         try{
-            String eventName = c.event.getName();
-            CalendarEvent e = calendar.get(eventName);
-            calendar.remove(eventName);
+            calendar.remove(c.event.getName());
             persistence.addObject("calendar", calendar);
-            reply.append("Removed event `").append(eventName).append("`\n");
-            logger.info("Removed event: " + e);
+            reply.append("Removed event `").append(c.event.getName()).append("`\n");
+            logger.info("Removed event: " + c.event);
         } catch (Exception e){
             reply.append("Unable to remove event, see log");
-            logger.error(e.getMessage());
+            logger.error("Problem removing message: ", e);
         }
         return true;
     }
 
     private boolean rsvpForEvent(Context c){
         User user = c.getUser();
-        String eventName = c.eventName;
-        CalendarEvent e = calendar.get(eventName);
         boolean going = c.rsvpGoing;
         if(going) {
-            e.rsvpGoing(user);
+            c.event.rsvpGoing(user);
             persistence.addObject("calendar", calendar);
-            reply.append("You have successfully rsvp'd for `").append(e.getName()).append("`\n");
-            logger.info("User " + user + " has rsvp'd 'going' for event " + e);
+            reply.append("You have successfully rsvp'd for `").append(c.event.getName()).append("`\n");
+            logger.info("User " + user + " has rsvp'd 'going' for event " + c.event);
         } else {
-            e.rsvpNotGoing(user);
+            c.event.rsvpNotGoing(user);
             persistence.addObject("calendar", calendar);
-            reply.append("You have successfully anti-rsvp'd for `").append(e.getName()).append("`\n");
-            logger.info("User " + user + " has rsvp'd 'not going' for event " + e);
+            reply.append("You have successfully anti-rsvp'd for `").append(c.event.getName()).append("`\n");
+            logger.info("User " + user + " has rsvp'd 'not going' for event " + c.event);
         }
         return true;
     }

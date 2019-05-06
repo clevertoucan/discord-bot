@@ -16,7 +16,7 @@ public class Context implements Serializable {
     private MessageHistory messageHistory;
 
 
-    public String commandString, dateFormatString, eventName, pingMessageContent, description, location;
+    public String commandString, dateFormatString, pingMessageContent, description, location;
     public CalendarEvent event;
     public CalendarEvent[] events;
     public Boolean rsvpGoing, messageDeleteOn;
@@ -40,6 +40,10 @@ public class Context implements Serializable {
 
     public void addData(String key, Serializable value){
         data.put(key, value);
+    }
+
+    public void clearMessageHistory(){
+        messageHistory.clearMessageHistory(this);
     }
 
     public JDA getJDA() {

@@ -1,11 +1,14 @@
 package model;
 
 import net.dv8tion.jda.core.entities.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 
 public class MessageHistory {
 
+    Logger logger = LoggerFactory.getLogger("MessageHistory");
     LinkedList<Message> messages;
 
     public MessageHistory(){
@@ -16,10 +19,9 @@ public class MessageHistory {
         messages.add(m);
     }
 
-    public void clearMessageHistory(){
-        for(Message message : messages){
-            message.delete().reason("Cleaning Bot Command").complete();
-        }
+    public void clearMessageHistory(Context c){
+        c.getChannel().purgeMessages(messages);
+        logger.info("Deleting messages: " + messages);
     }
 
 }
