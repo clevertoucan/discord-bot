@@ -65,6 +65,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
         updatePlayingMessage(event.getJDA().getPresence());
     }
 
+    //TODO: Add "set event ping <"eventName"> <"timeBeforeEvent"> <"customMessage"> ", add "set verbose on/off"
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         if(event.getAuthor() != event.getJDA().getSelfUser()) {
@@ -317,6 +318,8 @@ public class CalendarListenerImpl extends ListenerAdapter {
                                 if(e != null){
                                     if(e.getAttendees().length > 0) {
                                         if (outMessage != null) {
+                                            context.event=e;
+                                            context.pingMessageContent = outMessage;
                                             processEvent(context, this::pingEvent);
                                         } else {
                                             reply.append("Unable to parse message. Syntax for `ping` is:\n")
