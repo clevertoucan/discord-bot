@@ -10,6 +10,3 @@ printf "export PATH=\${M2_HOME}/bin:\${PATH}" >> /etc/profile.d/mavenenv.sh
 chmod +x /etc/profile.d/mavenenv.sh
 source /etc/profile.d/mavenenv.sh
 
-mvn package
-
-java -jar target/discord-bot*.jar
