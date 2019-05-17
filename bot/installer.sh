@@ -12,4 +12,4 @@ source /etc/profile.d/mavenenv.sh
 
 mvn package
 
-java -jar discord-bot*.jar
+java -jar target/discord-bot*.jar
