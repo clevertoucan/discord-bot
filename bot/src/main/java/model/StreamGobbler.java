@@ -16,14 +16,15 @@ public class StreamGobbler implements Runnable {
     public StreamGobbler(InputStream inputStream, Context context) {
         this.context = context;
         this.inputStream = inputStream;
-        reply.append("```");
         consumer = s -> reply.append(s).append("\n");
     }
 
     @Override
     public void run() {
         new BufferedReader(new InputStreamReader(inputStream)).lines().forEach(consumer);
-        reply.append("```");
-        context.getChannel().sendMessage(reply.toString()).complete();
+        if(reply.length() > 0){
+            reply = new StringBuilder().append("```").append(reply).append("```");
+            context.getChannel().sendMessage(reply.toString()).complete();
+        }
     }
 }
