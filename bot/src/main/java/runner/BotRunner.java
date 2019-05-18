@@ -32,8 +32,8 @@ public class BotRunner {
                 file.createNewFile();
             }
             */
-            File prefs = new File("apitoken");
-            //File prefs = new File("dev-token");
+            //File prefs = new File("apitoken");
+            File prefs = new File("dev-token");
             if(!prefs.exists()){
                 logger.warn("API Token not found, exiting...");
                 System.exit(-1);
