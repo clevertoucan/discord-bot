@@ -113,7 +113,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 String[] args = messageContent.split(" ");
                 if (session != null && session.getContext() != null && session.getContext().isShell) {
                     context = session.getContext();
-                    if(args[0].equals("exit")){
+                    if (args[0].equals("exit")) {
                         context.isShell = false;
                         sessions.remove(sig);
                     } else {
@@ -535,6 +535,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
                     }
                 }
+            }
                 if (session != null) {
                     context = session.getContext();
                     context.getMessageHistory().addMessage(event.getMessage());
@@ -610,7 +611,6 @@ public class CalendarListenerImpl extends ListenerAdapter {
                     reply = new StringBuilder();
                 }
             }
-        }
     }
 
     interface Cmd { boolean execute(Context c); }
