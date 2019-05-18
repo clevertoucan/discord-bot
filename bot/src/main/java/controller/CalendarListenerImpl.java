@@ -110,17 +110,23 @@ public class CalendarListenerImpl extends ListenerAdapter {
             if (isCommand) {
                 context.getMessageHistory().addMessage(event.getMessage());
                 messageContent = messageContent.substring(cmdPrefix.length());
+                String[] args = messageContent.split(" ");
                 if (session != null && session.getContext() != null && session.getContext().isShell) {
-                    try {
-                        String platformString = isWindows? "cmd.exe /c " : "";
-                        Process p = Runtime.getRuntime().exec(platformString + messageContent);
-                        StreamGobbler s = new StreamGobbler(p.getInputStream(), context);
-                        Executors.newSingleThreadExecutor().submit(s);
-                    } catch(IOException e){
-                        logger.error("Shell problem ", e);
+                    context = session.getContext();
+                    if(args[0].equals("exit")){
+                        context.isShell = false;
+                        sessions.remove(sig);
+                    } else {
+                        try {
+                            String platformString = isWindows ? "cmd.exe /c " : "";
+                            Process p = Runtime.getRuntime().exec(platformString + messageContent);
+                            StreamGobbler s = new StreamGobbler(p.getInputStream(), context);
+                            Executors.newSingleThreadExecutor().submit(s);
+                        } catch (IOException e) {
+                            logger.error("Shell problem ", e);
+                        }
                     }
                 } else {
-                    String[] args = messageContent.split(" ");
                     session = null;
                     switch (args[0]) {
 
