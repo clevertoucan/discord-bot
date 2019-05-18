@@ -15,7 +15,6 @@ import java.io.*;
 import java.util.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,14 +24,12 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private GuildCalendar calendar;
     private Logger logger = LoggerFactory.getLogger("CalendarEventListener");
     private HashMap<Signature, Session> sessions;
-    private HashSet<String> authorizedShellUsers = new HashSet<>();
     private ArrayList<String> baharQuotes = new ArrayList<>();
     private String ownerID, baharID;
 
     private String dateFormatString;
     private Boolean cleanup = false, verbose = false;
     private StringBuilder reply = new StringBuilder();
-    private boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
 
     public CalendarListenerImpl(){
         persistence = Persistence.getInstance();
@@ -111,506 +108,470 @@ public class CalendarListenerImpl extends ListenerAdapter {
                 context.getMessageHistory().addMessage(event.getMessage());
                 messageContent = messageContent.substring(cmdPrefix.length());
                 String[] args = messageContent.split(" ");
-                if (session != null && session.getContext() != null && session.getContext().isShell) {
-                    context = session.getContext();
-                    if (args[0].equals("exit")) {
-                        context.isShell = false;
-                        sessions.remove(sig);
-                    } else {
-                        try {
-                            String platformString = isWindows ? "cmd.exe /c " : "";
-                            Process p = Runtime.getRuntime().exec(platformString + messageContent);
-                            StreamGobbler s = new StreamGobbler(p.getInputStream(), context);
-                            Executors.newSingleThreadExecutor().submit(s);
-                        } catch (IOException e) {
-                            logger.error("Shell problem ", e);
-                        }
-                    }
-                } else {
-                    session = null;
-                    switch (args[0]) {
+                session = null;
 
-                        //Handles all create-related commands (create event)
-                        case "create":
-                            String[] createArgs = {"event"};
-                            if (args.length < 2) {
-                                argsMsg(createArgs, event.getChannel());
-                            } else {
-                                if ("event".equals(args[1])) {
-                                    if (args.length < 3) {
-                                        reply.append("Please input a name for the event");
+                switch (args[0]) {
+
+                    //Handles all create-related commands (create event)
+                    case "create":
+                        String[] createArgs = {"event"};
+                        if (args.length < 2) {
+                            argsMsg(createArgs, event.getChannel());
+                        } else {
+                            if ("event".equals(args[1])) {
+                                if (args.length < 3) {
+                                    reply.append("Please input a name for the event");
+                                    addSession(context, "createEventName");
+                                } else {
+                                    String x = cat(args, 2);
+                                    if(calendar.contains(x)){
+                                        reply.append("An active event already exists with that name. Please input a new name.");
                                         addSession(context, "createEventName");
                                     } else {
-                                        String x = cat(args, 2);
-                                        if (calendar.contains(x)) {
-                                            reply.append("An active event already exists with that name. Please input a new name.");
-                                            addSession(context, "createEventName");
+                                        context.event = new CalendarEvent(event.getAuthor(), x);
+                                        addSession(context, "createEventDate");
+                                        reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
+                                    }
+                                }
+                            } else {
+                                argsMsg(createArgs, event.getChannel());
+                            }
+                        }
+                        break;
+                    //Handles all settings
+                    case "set":
+                        String[] setArgs = {"commandstring", "event", "dateformatstring", "cleanup", "verbose"};
+                        if (args.length < 2) {
+                            argsMsg(setArgs, event.getChannel());
+                        } else {
+                            switch (args[1]) {
+                                case "commandstring":
+                                    if (args.length < 3) {
+                                        reply.append("Missing command string. Proper syntax is `")
+                                                .append(cmdPrefix)
+                                                .append("set commandstring <newCmdString>`");
+                                    } else {
+                                        context.commandString = cat(args, 2);
+                                        processEvent(context, this::setCommandString);
+                                    }
+                                    break;
+                                case "event":
+                                    String[] setEventArgs = {"description", "start", "end", "location"};
+                                    if (args.length < 3) {
+                                        argsMsg(setEventArgs, event.getChannel());
+                                    } else {
+                                        Matcher m = Pattern.compile("[^\"]*\"([^\"]*)\"[^\"]*\"([^\"]*)\"[^\"]*").matcher(messageContent);
+                                        logger.info("Group count: " + m.groupCount());
+
+                                        if (m.matches()) {
+                                            String eventName, arg;
+                                            eventName = m.group(1);
+                                            CalendarEvent e = calendar.get(eventName);
+                                            if (e == null) {
+                                                reply.append("invalid event name");
+                                            } else {
+                                                context.event = e;
+                                                arg = m.group(2);
+                                                switch (args[2]) {
+                                                    case "description": {
+                                                        context.description = arg;
+                                                        processEvent(context, this::setDescription);
+                                                        break;
+                                                    }
+                                                    case "location": {
+                                                        context.location = arg;
+                                                        processEvent(context, this::setLocation);
+                                                        break;
+                                                    }
+                                                    case "start": {
+                                                        Date d = parseDate(arg, reply);
+                                                        if (d != null) {
+                                                            context.date = d;
+                                                            processEvent(context, this::setStartDate);
+                                                        }
+                                                        break;
+                                                    }
+                                                    case "end": {
+                                                        Date d = parseDate(arg, reply);
+                                                        if (d != null) {
+                                                            context.date = d;
+                                                            processEvent(context, this::setEndDate);
+                                                        }
+
+                                                        break;
+                                                    }
+                                                }
+                                            }
+
                                         } else {
-                                            context.event = new CalendarEvent(event.getAuthor(), x);
-                                            addSession(context, "createEventDate");
-                                            reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
+                                            m = Pattern.compile("[^\"]*\"([^\"]*)\"[^\"]*\"([^\"]*)\"[^\"]*\"([^\"]*)\"[^\"]*").matcher(messageContent);
+                                            if(m.matches()) {
+                                                String eventName = m.group(1), arg1 = m.group(2), arg2 = m.group(3);
+                                                CalendarEvent e = calendar.get(eventName);
+                                                if (e != null) {
+                                                    if (args[2].equals("ping")) {
+                                                        m = Pattern.compile("(\\d+)([dhms]),?").matcher(arg1);
+                                                        if (m.matches()) {
+                                                        long time = Integer.parseInt(m.group(1));
+                                                        switch (m.group(2)){
+                                                            case "d": {
+                                                                time *= 86400000;
+                                                                break;
+                                                            }case "h": {
+                                                                time *= 3600000;
+                                                                break;
+                                                            }case "m": {
+                                                                time *= 60000;
+                                                                break;
+                                                            }case "s": {
+                                                                time *= 1000;
+                                                                break;
+                                                            }
+                                                        }
+
+                                                        context.time = time;
+                                                        context.event = e;
+                                                        context.pingMessageContent = arg2;
+                                                        processEvent(context, this::schedulePing);
+                                                        }
+                                                    }
+                                                } else {
+                                                    reply.append("Invalid event name: ").append(eventName);
+                                                }
+                                            } else{
+                                                logger.warn("No match");
+                                            }
                                         }
                                     }
-                                } else {
-                                    argsMsg(createArgs, event.getChannel());
-                                }
-                            }
-                            break;
-                        //Handles all settings
-                        case "set":
-                            String[] setArgs = {"commandstring", "event", "dateformatstring", "cleanup", "verbose"};
-                            if (args.length < 2) {
-                                argsMsg(setArgs, event.getChannel());
-                            } else {
-                                switch (args[1]) {
-                                    case "commandstring":
-                                        if (args.length < 3) {
-                                            reply.append("Missing command string. Proper syntax is `")
-                                                    .append(cmdPrefix)
-                                                    .append("set commandstring <newCmdString>`");
-                                        } else {
-                                            context.commandString = cat(args, 2);
-                                            processEvent(context, this::setCommandString);
-                                        }
-                                        break;
-                                    case "event":
-                                        String[] setEventArgs = {"description", "start", "end", "location"};
-                                        if (args.length < 3) {
-                                            argsMsg(setEventArgs, event.getChannel());
-                                        } else {
-                                            Matcher m = Pattern.compile("[^\"]*\"([^\"]*)\"[^\"]*\"([^\"]*)\"[^\"]*").matcher(messageContent);
-                                            logger.info("Group count: " + m.groupCount());
 
-                                            if (m.matches()) {
-                                                String eventName, arg;
-                                                eventName = m.group(1);
-                                                CalendarEvent e = calendar.get(eventName);
-                                                if (e == null) {
-                                                    reply.append("invalid event name");
-                                                } else {
-                                                    context.event = e;
-                                                    arg = m.group(2);
-                                                    switch (args[2]) {
-                                                        case "description": {
-                                                            context.description = arg;
-                                                            processEvent(context, this::setDescription);
-                                                            break;
-                                                        }
-                                                        case "location": {
-                                                            context.location = arg;
-                                                            processEvent(context, this::setLocation);
-                                                            break;
-                                                        }
-                                                        case "start": {
-                                                            Date d = parseDate(arg, reply);
-                                                            if (d != null) {
-                                                                context.date = d;
-                                                                processEvent(context, this::setStartDate);
-                                                            }
-                                                            break;
-                                                        }
-                                                        case "end": {
-                                                            Date d = parseDate(arg, reply);
-                                                            if (d != null) {
-                                                                context.date = d;
-                                                                processEvent(context, this::setEndDate);
-                                                            }
-
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-
-                                            } else {
-                                                m = Pattern.compile("[^\"]*\"([^\"]*)\"[^\"]*\"([^\"]*)\"[^\"]*\"([^\"]*)\"[^\"]*").matcher(messageContent);
-                                                if (m.matches()) {
-                                                    String eventName = m.group(1), arg1 = m.group(2), arg2 = m.group(3);
-                                                    CalendarEvent e = calendar.get(eventName);
-                                                    if (e != null) {
-                                                        if (args[2].equals("ping")) {
-                                                            m = Pattern.compile("(\\d+)([dhms]),?").matcher(arg1);
-                                                            if (m.matches()) {
-                                                                long time = Integer.parseInt(m.group(1));
-                                                                switch (m.group(2)) {
-                                                                    case "d": {
-                                                                        time *= 86400000;
-                                                                        break;
-                                                                    }
-                                                                    case "h": {
-                                                                        time *= 3600000;
-                                                                        break;
-                                                                    }
-                                                                    case "m": {
-                                                                        time *= 60000;
-                                                                        break;
-                                                                    }
-                                                                    case "s": {
-                                                                        time *= 1000;
-                                                                        break;
-                                                                    }
-                                                                }
-
-                                                                context.time = time;
-                                                                context.event = e;
-                                                                context.pingMessageContent = arg2;
-                                                                processEvent(context, this::schedulePing);
-                                                            }
-                                                        }
-                                                    } else {
-                                                        reply.append("Invalid event name: ").append(eventName);
-                                                    }
-                                                } else {
-                                                    logger.warn("No match");
-                                                }
-                                            }
-                                        }
-
-                                        break;
-                                    case "dateformatstring":
-                                        if (args.length < 3) {
-                                            reply.append("Format string missing");
-                                        } else {
-                                            context.dateFormatString = cat(args, 2);
-                                            processEvent(context, this::setDateFormatString);
-                                        }
-                                        break;
-                                    case "cleanup":
-                                        if (args.length < 3) {
-                                            reply.append("Missing `on`/`off`");
-                                        } else {
-                                            if (args[2].equals("on")) {
-                                                List<Permission> permissions = context.getGuild().getMember(event.getJDA().getSelfUser())
-                                                        .getPermissions(context.getChannel());
-                                                for (Permission p : permissions) {
-                                                    if (p.equals(Permission.MESSAGE_MANAGE)) {
-                                                        context.messageDeleteOn = true;
-                                                    }
-                                                }
-                                                permissions = context.getGuild().getMember(event.getJDA().getSelfUser()).getPermissions();
-                                                for (Permission p : permissions) {
-                                                    if (p.equals(Permission.MESSAGE_MANAGE)) {
-                                                        context.messageDeleteOn = true;
-                                                    }
-                                                }
-                                                if (context.messageDeleteOn != null && context.messageDeleteOn) {
-                                                    processEvent(context, this::setDeleteUserMessages);
-                                                } else {
-                                                    reply.append("Cannot turn on cleanup: need `Manage Messages` permission");
-                                                }
-                                            } else if (args[2].equals("off")) {
-                                                context.messageDeleteOn = false;
-                                                processEvent(context, this::setDeleteUserMessages);
-                                            }
-                                        }
-
-                                        break;
-
-                                    case "verbose":
-                                        if (args.length < 3) {
-                                            reply.append("Missing `on`/`off`");
-                                        } else {
-                                            if (args[2].equals("on")) {
-                                                context.verbose = true;
-                                            } else if (args[2].equals("off")) {
-                                                context.verbose = false;
-                                            }
-                                            processEvent(context, this::setVerbose);
-                                        }
-                                        break;
-                                    default:
-                                        argsMsg(setArgs, event.getChannel());
-                                        break;
-                                }
-                            }
-                            break;
-
-                        case "remove":
-                            String[] removeArgs = {"event"};
-                            if (args.length < 2) {
-                                argsMsg(removeArgs, event.getChannel());
-                            } else {
-                                if ("event".equals(args[1])) {
+                                    break;
+                                case "dateformatstring":
                                     if (args.length < 3) {
+                                        reply.append("Format string missing");
+                                    } else {
+                                        context.dateFormatString = cat(args, 2);
+                                        processEvent(context, this::setDateFormatString);
+                                    }
+                                    break;
+                                case "cleanup":
+                                    if (args.length < 3) {
+                                        reply.append("Missing `on`/`off`");
+                                    } else {
+                                        if (args[2].equals("on")) {
+                                            List<Permission> permissions = context.getGuild().getMember(event.getJDA().getSelfUser())
+                                                    .getPermissions(context.getChannel());
+                                            for (Permission p : permissions) {
+                                                if (p.equals(Permission.MESSAGE_MANAGE)) {
+                                                    context.messageDeleteOn = true;
+                                                }
+                                            }
+                                            permissions = context.getGuild().getMember(event.getJDA().getSelfUser()).getPermissions();
+                                            for (Permission p : permissions) {
+                                                if (p.equals(Permission.MESSAGE_MANAGE)) {
+                                                    context.messageDeleteOn = true;
+                                                }
+                                            }
+                                            if (context.messageDeleteOn != null && context.messageDeleteOn) {
+                                                processEvent(context, this::setDeleteUserMessages);
+                                            } else {
+                                                reply.append("Cannot turn on cleanup: need `Manage Messages` permission");
+                                            }
+                                        } else if (args[2].equals("off")) {
+                                            context.messageDeleteOn = false;
+                                            processEvent(context, this::setDeleteUserMessages);
+                                        }
+                                    }
+
+                                    break;
+
+                                case "verbose":
+                                    if(args.length < 3){
+                                        reply.append("Missing `on`/`off`");
+                                    } else {
+                                        if(args[2].equals("on")){
+                                            context.verbose = true;
+                                        } else if(args[2].equals("off")){
+                                            context.verbose = false;
+                                        }
+                                        processEvent(context, this::setVerbose);
+                                    }
+                                    break;
+                                default:
+                                    argsMsg(setArgs, event.getChannel());
+                                    break;
+                            }
+                        }
+                        break;
+
+                    case "remove":
+                        String[] removeArgs = {"event"};
+                        if (args.length < 2) {
+                            argsMsg(removeArgs, event.getChannel());
+                        } else {
+                            if ("event".equals(args[1])) {
+                                if (args.length < 3) {
+                                    reply.append("Which event would you like to remove?\n");
+                                    context.events = listEvents();
+                                    addSession(context, "removeEvent");
+                                } else {
+                                    String eventName = cat(args, 2);
+                                    CalendarEvent e = calendar.get(eventName);
+                                    if (e == null) {
+                                        reply.append("No event found by name: ").append(eventName).append("\n");
                                         reply.append("Which event would you like to remove?\n");
                                         context.events = listEvents();
                                         addSession(context, "removeEvent");
                                     } else {
-                                        String eventName = cat(args, 2);
-                                        CalendarEvent e = calendar.get(eventName);
-                                        if (e == null) {
-                                            reply.append("No event found by name: ").append(eventName).append("\n");
-                                            reply.append("Which event would you like to remove?\n");
-                                            context.events = listEvents();
-                                            addSession(context, "removeEvent");
-                                        } else {
-                                            context.event = calendar.get(eventName);
-                                            processEvent(context, this::removeEvent);
-                                        }
-                                    }
-                                } else {
-                                    argsMsg(removeArgs, event.getChannel());
-                                }
-                            }
-                            break;
-
-                        case "list":
-                            String[] listArgs = {"events"};
-                            if (args.length < 2) {
-                                argsMsg(listArgs, event.getChannel());
-                            } else {
-                                if (args[1].equals("events")) {
-                                    processEvent(context, this::listEvents);
-                                }
-                            }
-                            break;
-
-                        case "rsvp":
-                            if (calendar.size() > 0) {
-                                String[] rsvpArgs = {"going", "notgoing"};
-                                if (args.length < 2) {
-                                    argsMsg(rsvpArgs, event.getChannel());
-                                } else {
-                                    if (args[1].equals("going") || args[1].equals("notgoing")) {
-                                        context.rsvpGoing = args[1].equals("going");
-                                        if (args.length < 3) {
-                                            reply.append("Which event would you like to rsvp for?\n");
-                                            context.events = listEvents();
-                                            addSession(context, "rsvpEvent");
-                                        } else {
-                                            context.event = calendar.get(cat(args, 2));
-                                            processEvent(context, this::rsvpForEvent);
-                                        }
+                                        context.event = calendar.get(eventName);
+                                        processEvent(context, this::removeEvent);
                                     }
                                 }
                             } else {
-                                reply.append("No events to rsvp for");
+                                argsMsg(removeArgs, event.getChannel());
                             }
-                            break;
+                        }
+                        break;
 
-                        case "view":
-                            String[] viewArgs = {"event"};
+                    case "list":
+                        String[] listArgs = {"events"};
+                        if (args.length < 2) {
+                            argsMsg(listArgs, event.getChannel());
+                        } else {
+                            if (args[1].equals("events")) {
+                                processEvent(context, this::listEvents);
+                            }
+                        }
+                        break;
+
+                    case "rsvp":
+                        if(calendar.size() > 0) {
+                            String[] rsvpArgs = {"going", "notgoing"};
                             if (args.length < 2) {
-                                argsMsg(viewArgs, event.getChannel());
+                                argsMsg(rsvpArgs, event.getChannel());
                             } else {
-                                if (args[1].equals("event")) {
+                                if (args[1].equals("going") || args[1].equals("notgoing")) {
+                                    context.rsvpGoing= args[1].equals("going");
                                     if (args.length < 3) {
+                                        reply.append("Which event would you like to rsvp for?\n");
+                                        context.events = listEvents();
+                                        addSession(context, "rsvpEvent");
+                                    } else {
+                                        context.event= calendar.get(cat(args, 2));
+                                        processEvent(context, this::rsvpForEvent);
+                                    }
+                                }
+                            }
+                        } else {
+                            reply.append("No events to rsvp for");
+                        }
+                        break;
+
+                    case "view":
+                        String[] viewArgs = {"event"};
+                        if(args.length < 2){
+                            argsMsg(viewArgs, event.getChannel());
+                        } else {
+                            if(args[1].equals("event")){
+                                if(args.length < 3){
+                                    reply.append("Which event would you like to view?\n");
+                                    context.events = listEvents();
+                                    addSession(context, "viewEvent");
+                                } else {
+                                    String eventName = cat(args, 2);
+                                    CalendarEvent e = calendar.get(eventName);
+                                    if (e == null) {
+                                        reply.append("No event found by name: ").append(eventName).append("\n");
                                         reply.append("Which event would you like to view?\n");
                                         context.events = listEvents();
                                         addSession(context, "viewEvent");
                                     } else {
-                                        String eventName = cat(args, 2);
-                                        CalendarEvent e = calendar.get(eventName);
-                                        if (e == null) {
-                                            reply.append("No event found by name: ").append(eventName).append("\n");
-                                            reply.append("Which event would you like to view?\n");
-                                            context.events = listEvents();
-                                            addSession(context, "viewEvent");
-                                        } else {
-                                            context.event = e;
-                                            processEvent(context, this::viewEvent);
-                                        }
+                                        context.event = e;
+                                        processEvent(context, this::viewEvent);
                                     }
                                 }
                             }
-                            break;
-                        // ping "event name" "message"
-                        case "ping":
-                            if (args.length < 2) {
-                                reply.append("Which event would you like to ping?\n");
-                                context.events = listEvents();
-                                addSession(context, "pingEvent");
-                            } else {
-                                Matcher m = Pattern.compile(".*\"(.*)\".*\"(.*)\"").matcher(messageContent);
-                                if (m.matches()) {
-                                    String eventName = m.group(1);
-                                    String outMessage = m.group(2);
-                                    CalendarEvent e = calendar.get(eventName);
-                                    if (e != null) {
-                                        if (e.getAttendees().length > 0) {
-                                            if (outMessage != null) {
-                                                context.event = e;
-                                                context.pingMessageContent = outMessage;
-                                                processEvent(context, this::pingEvent);
-                                            } else {
-                                                reply.append("Unable to parse message. Syntax for `ping` is:\n")
-                                                        .append("`").append(cmdPrefix)
-                                                        .append("ping <\"event name\"> <\"message\">`");
-                                            }
+                        }
+                        break;
+                    // ping "event name" "message"
+                    case "ping":
+                        if(args.length < 2){
+                            reply.append("Which event would you like to ping?\n");
+                            context.events = listEvents();
+                            addSession(context, "pingEvent");
+                        } else {
+                            Matcher m = Pattern.compile(".*\"(.*)\".*\"(.*)\"").matcher(messageContent);
+                            if(m.matches()){
+                                String eventName = m.group(1);
+                                String outMessage = m.group(2);
+                                CalendarEvent e = calendar.get(eventName);
+                                if(e != null){
+                                    if(e.getAttendees().length > 0) {
+                                        if (outMessage != null) {
+                                            context.event=e;
+                                            context.pingMessageContent = outMessage;
+                                            processEvent(context, this::pingEvent);
                                         } else {
-                                            reply.append("Event has no attendees - ping cancelled");
+                                            reply.append("Unable to parse message. Syntax for `ping` is:\n")
+                                                    .append("`").append(cmdPrefix)
+                                                    .append("ping <\"event name\"> <\"message\">`");
                                         }
                                     } else {
-                                        reply.append("Unable to find event with that name; which event would you like to ping?\n");
-                                        context.events = listEvents();
-                                        addSession(context, "pingEvent");
+                                        reply.append("Event has no attendees - ping cancelled");
                                     }
                                 } else {
-                                    reply.append("Unable to parse message. Syntax for `ping` is:\n")
-                                            .append("`").append(cmdPrefix)
-                                            .append("ping <\"event name\"> <\"message\">`");
+                                     reply.append("Unable to find event with that name; which event would you like to ping?\n");
+                                     context.events = listEvents();
+                                     addSession(context, "pingEvent");
                                 }
-                            }
-                            break;
-                        case "help":
-                            processEvent(context, this::help);
-                            break;
-                        //Temp debug functions
-
-                        case "owner":
-                            if (ownerID == null || event.getAuthor().getId().equals(ownerID)) {
-                                ownerID = event.getAuthor().getId();
-                                persistence.addObject("owner", ownerID);
                             } else {
-                                reply.append("The owner has already been set");
+                                reply.append("Unable to parse message. Syntax for `ping` is:\n")
+                                        .append("`").append(cmdPrefix)
+                                        .append("ping <\"event name\"> <\"message\">`");
                             }
-                            break;
-                        case "shutdown":
-                            if (event.getAuthor().getId().equals(ownerID)) {
-                                event.getChannel().sendMessage("Shutting down").complete();
-                                System.exit(1);
-                            } else {
-                                reply.append("Only Josh can do that, dingus");
-                            }
-                            break;
+                        }
+                        break;
+                    case "help":
+                        processEvent(context, this::help);
+                        break;
+                    //Temp debug functions
 
-                        case "baharquote":
-                            Random rand = new Random();
-                            int index = rand.nextInt(baharQuotes.size());
-                            reply.append(baharQuotes.get(index));
-                            break;
-                        case "bahar":
-                            logger.info("Retrieving bahar quotes");
-                            if (baharQuotes.isEmpty()) {
-                                List<Guild> guilds = event.getJDA().getGuilds();
-                                for (Guild g : guilds) {
-                                    if (g.isMember(event.getJDA().getUserById(baharID))) {
-                                        for (MessageChannel messageChannel : g.getTextChannels()) {
-                                            for (Message m : messageChannel.getIterableHistory()) {
-                                                if (m.getAuthor().getId().equals(baharID) && m.getReactions().size() > 0) {
-                                                    baharQuotes.add(m.getContentRaw());
-                                                }
+                    case "owner":
+                        if(ownerID == null || event.getAuthor().getId().equals(ownerID)) {
+                            ownerID = event.getAuthor().getId();
+                            persistence.addObject("owner", ownerID);
+                        } else{
+                            reply.append("The owner has already been set");
+                        }
+                        break;
+                    case "shutdown":
+                        if(event.getAuthor().getId().equals(ownerID)){
+                            event.getChannel().sendMessage("Shutting down").complete();
+                            System.exit(1);
+                        } else {
+                            reply.append("Only Josh can do that, dingus");
+                        }
+                        break;
+
+                    case "baharquote":
+                        Random rand = new Random();
+                        int index = rand.nextInt(baharQuotes.size());
+                        reply.append(baharQuotes.get(index));
+                        break;
+                    case "bahar":
+                        logger.info("Retrieving bahar quotes");
+                        if(baharQuotes.isEmpty()) {
+                            List<Guild> guilds = event.getJDA().getGuilds();
+                            for (Guild g : guilds) {
+                                if (g.isMember(event.getJDA().getUserById(baharID))) {
+                                    for (MessageChannel messageChannel : g.getTextChannels()) {
+                                        for (Message m : messageChannel.getIterableHistory()) {
+                                            if (m.getAuthor().getId().equals(baharID) && m.getReactions().size() > 0) {
+                                                baharQuotes.add(m.getContentRaw());
                                             }
                                         }
                                     }
                                 }
-                                logger.info("Writing Bahar Quotes");
-                                File quotes = new File("BaharQuotes");
-                                boolean exists = quotes.exists();
-                                if (!exists) {
-                                    try {
-                                        exists = quotes.createNewFile();
-                                    } catch (IOException e) {
-                                        logger.error("bahar quotes error", e);
-                                    }
-                                }
-                                if (exists) {
-                                    try {
-                                        BufferedWriter writer = new BufferedWriter(new FileWriter(quotes, true));
-                                        for (String s : baharQuotes) {
-                                            writer.append(s).append("\n");
-                                        }
-                                        writer.close();
-                                    } catch (IOException e) {
-                                        logger.error("bahar quotes error", e);
-                                    }
-                                }
-                                logger.info("Finished Bahar Quotes");
                             }
-                            break;
-
-                        case "shell":
-                            if (authorizedShellUsers.contains(event.getAuthor().getId())
-                                    || event.getAuthor().getId().equals(ownerID)) {
-                                context.isShell = true;
-                                addSession(context, "shell");
-                                reply.append("```Welcome to the Discord Shell (dish)!```");
-                                logger.info("Interactive shell started");
-                            } else {
-                                reply.append("Only Josh can do that, dingus");
+                            logger.info("Writing Bahar Quotes");
+                            File quotes = new File("BaharQuotes");
+                            boolean exists = quotes.exists();
+                            if (!exists) {
+                                try {
+                                    exists = quotes.createNewFile();
+                                } catch (IOException e) {
+                                    logger.error("bahar quotes error", e);
+                                }
                             }
-                            break;
-                        default:
+                            if (exists) {
+                                try {
+                                    BufferedWriter writer = new BufferedWriter(new FileWriter(quotes, true));
+                                    for (String s : baharQuotes) {
+                                        writer.append(s).append("\n");
+                                    }
+                                    writer.close();
+                                } catch (IOException e) {
+                                    logger.error("bahar quotes error", e);
+                                }
+                            }
+                            logger.info("Finished Bahar Quotes");
+                        }
+                        break;
+                    default:
 
-                            break;
+                        break;
 
-                    }
                 }
-            }
-                if (session != null) {
-                    context = session.getContext();
-                    context.getMessageHistory().addMessage(event.getMessage());
-                    switch (session.getFlag()) {
-                        case "createEventName":
-                            if (calendar.contains(messageContent)) {
-                                reply.append("An active event already exists with that name. Please input a new name.");
-                            } else {
-                                context.event = new CalendarEvent(event.getAuthor(), messageContent);
-                                reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
-                                session.setFlag("createEventDate");
-                            }
-                            break;
-                        case "createEventDate":
-                            Date d = parseDate(messageContent, reply);
-                            if (d != null) {
-                                context.event.setStart(d);
-                                processEvent(context, this::registerEvent);
-                                sessions.remove(session.getContext().getSignature());
-                            }
-                            break;
-                        case "removeEvent":
-                            context.event = eventLookup(messageContent, context.events, reply);
-                            if (context.event != null) {
-                                processEvent(context, this::removeEvent);
-                                sessions.remove(session.getContext().getSignature());
-                            }
-                            break;
-                        case "rsvpEvent": {
-                            CalendarEvent e = eventLookup(messageContent, context.events, reply);
-                            if (e != null) {
-                                processEvent(context, this::rsvpForEvent);
-                                sessions.remove(session.getContext().getSignature());
-                            }
-                            break;
+
+            } if(session != null) {
+                context = session.getContext();
+                context.getMessageHistory().addMessage(event.getMessage());
+                switch (session.getFlag()) {
+                    case "createEventName":
+                        if (calendar.contains(messageContent)) {
+                            reply.append("An active event already exists with that name. Please input a new name.");
+                        } else {
+                            context.event = new CalendarEvent(event.getAuthor(), messageContent);
+                            reply.append("Please input a start time for the event in `").append(dateFormatString).append("` format");
+                            session.setFlag("createEventDate");
                         }
-                        case "viewEvent": {
-                            CalendarEvent e = eventLookup(messageContent, context.events, reply);
-                            if (e != null) {
-                                context.event = e;
-                                processEvent(context, this::viewEvent);
-                                sessions.remove(session.getContext().getSignature());
-                            }
-                            break;
-                        }
-                        case "pingEvent":
-                            context.event = eventLookup(messageContent, context.events, reply);
-                            if (context.event != null) {
-                                reply.append("What would you like your message to say?");
-                                session.setFlag("pingMessage");
-                            }
-                            break;
-                        case "pingMessage":
-                            context.pingMessageContent = messageContent;
-                            processEvent(context, this::pingEvent);
+                        break;
+                    case "createEventDate":
+                        Date d = parseDate(messageContent, reply);
+                        if (d != null) {
+                            context.event.setStart(d);
+                            processEvent(context, this::registerEvent);
                             sessions.remove(session.getContext().getSignature());
-                            break;
-                        case "exit":
-                            sessions.remove(sig);
-                            break;
-                        default:
-                            if(!session.getFlag().equals("shell")) {
-                                sessions.remove(sig);
-                            }
-                            break;
+                        }
+                        break;
+                    case "removeEvent":
+                        context.event = eventLookup(messageContent, context.events, reply);
+                        if (context.event != null) {
+                            processEvent(context, this::removeEvent);
+                            sessions.remove(session.getContext().getSignature());
+                        }
+                        break;
+                    case "rsvpEvent": {
+                        CalendarEvent e = eventLookup(messageContent, context.events, reply);
+                        if (e != null) {
+                            processEvent(context, this::rsvpForEvent);
+                            sessions.remove(session.getContext().getSignature());
+                        }
+                        break;
                     }
-                }
-
-                if (reply.length() > 0) {
-                    Message m = event.getChannel().sendMessage(reply.toString()).complete();
-                    context.getMessageHistory().addMessage(m);
-
-                    reply = new StringBuilder();
+                    case "viewEvent": {
+                        CalendarEvent e = eventLookup(messageContent, context.events, reply);
+                        if (e != null) {
+                            context.event = e;
+                            processEvent(context, this::viewEvent);
+                            sessions.remove(session.getContext().getSignature());
+                        }
+                        break;
+                    }
+                    case "pingEvent":
+                        context.event = eventLookup(messageContent, context.events, reply);
+                        if (context.event != null) {
+                            reply.append("What would you like your message to say?");
+                            session.setFlag("pingMessage");
+                        }
+                        break;
+                    case "pingMessage":
+                        context.pingMessageContent = messageContent;
+                        processEvent(context, this::pingEvent);
+                        sessions.remove(session.getContext().getSignature());
+                        break;
+                    default:
+                        sessions.remove(sig);
+                        break;
                 }
             }
+
+            if (reply.length() > 0) {
+                Message m = event.getChannel().sendMessage(reply.toString()).complete();
+                context.getMessageHistory().addMessage(m);
+
+                reply = new StringBuilder();
+            }
+        }
     }
 
     interface Cmd { boolean execute(Context c); }
