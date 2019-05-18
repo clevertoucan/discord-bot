@@ -586,8 +586,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
                             processEvent(context, this::pingEvent);
                             sessions.remove(session.getContext().getSignature());
                             break;
-                        default:
+                        case "exit":
                             sessions.remove(sig);
+                            break;
+                        default:
+                            if(!session.getFlag().equals("shell")) {
+                                sessions.remove(sig);
+                            }
                             break;
                     }
                 }
