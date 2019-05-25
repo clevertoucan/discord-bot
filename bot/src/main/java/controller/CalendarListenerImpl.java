@@ -718,6 +718,11 @@ public class CalendarListenerImpl extends ListenerAdapter {
             reply.append(getFormattedUserList(absentees, guild));
             reply.append("\n");
             reply.append("```\n");
+            String loc = e.getLocation();
+            if(loc != null) {
+                reply.append("Directions: https://www.google.com/maps/search/?api=1&query=");
+                reply.append(loc).append("\n");
+            }
         }
         return true;
     }
