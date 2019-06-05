@@ -23,6 +23,8 @@ public class Context implements Serializable {
     public Date date;
     public long time;
 
+    public boolean readyForDelete = false;
+
     public Context(Signature signature, JDA jda) {
         this.signature = signature;
         this.jda = jda;

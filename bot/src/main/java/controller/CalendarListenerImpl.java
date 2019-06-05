@@ -26,10 +26,12 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private HashMap<Signature, Session> sessions;
     private ArrayList<String> baharQuotes = new ArrayList<>();
     private String ownerID, baharID;
-
+    private int timeout = 10;
     private String dateFormatString;
     private Boolean cleanup = false, verbose = false;
     private StringBuilder reply = new StringBuilder();
+    private final Object syncObject = new Object();
+    HashMap<Date, Context> deleteQueue = new HashMap<>();
 
     public CalendarListenerImpl(){
         persistence = Persistence.getInstance();
@@ -83,6 +85,28 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
         sessions = new HashMap<>();
 
+        new Thread(() -> {
+            while(true) {
+                synchronized (deleteQueue) {
+                    Iterator<Date> i = deleteQueue.keySet().iterator();
+                    while (i.hasNext()) {
+                        Date d = i.next();
+                        if (deleteQueue.get(d).readyForDelete && new Date().getTime() - d.getTime() > timeout * 1000) {
+                            Context c = deleteQueue.get(d);
+                            c.clearMessageHistory();
+                            i.remove();
+                            logger.info("Deleted message context for " + c.getUser().getName());
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e){
+                    logger.warn("Delete thread interrupted");
+                }
+
+            }
+        }).start();
     }
 
     @Override
@@ -568,7 +592,9 @@ public class CalendarListenerImpl extends ListenerAdapter {
             if (reply.length() > 0) {
                 Message m = event.getChannel().sendMessage(reply.toString()).complete();
                 context.getMessageHistory().addMessage(m);
-
+                synchronized (deleteQueue) {
+                    deleteQueue.put(new Date(), context);
+                }
                 reply = new StringBuilder();
             }
         }
@@ -584,6 +610,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
         if(cleanup != null && cleanup) {
             c.clearMessageHistory();
         }
+        c.readyForDelete = true;
     }
 
     private boolean setVerbose(Context c){
