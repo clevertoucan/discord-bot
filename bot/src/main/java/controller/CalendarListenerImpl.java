@@ -95,7 +95,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
                             Context c = deleteQueue.get(d);
                             c.clearMessageHistory();
                             i.remove();
-                            logger.info("Deleted message context for " + c.getUser().getName());
+                            logger.info("Deleted message context for " + c.getSignature());
                         }
                     }
                 }
