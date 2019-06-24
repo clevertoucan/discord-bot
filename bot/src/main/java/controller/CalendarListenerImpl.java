@@ -512,10 +512,15 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         }
                         break;
 
-                    case "restart":
+                    case "restart": {
+                        Message m = event.getChannel().sendMessage("Checking for changes").complete();
+                        m.editMessage(m.getContentRaw()
+                                + (BotRunner.checkForChanges() ? "\nChanges Found; pulling and rebuilding..."
+                                        : "\nNo changes found. Restarting..."))
+                        .complete();
                         BotRunner.pullAndRestart();
                         break;
-
+                    }
                     case "baharquote":
                         Random rand = new Random();
                         int index = rand.nextInt(baharQuotes.size());

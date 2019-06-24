@@ -67,7 +67,7 @@ public class BotRunner {
         }
     }
 
-    static boolean checkForChanges(){
+    public static boolean checkForChanges(){
         try {
             Process localCheck = Runtime.getRuntime().exec("git rev-list --count master");
             Process remoteCheck = Runtime.getRuntime().exec("git rev-list --count origin/master");
