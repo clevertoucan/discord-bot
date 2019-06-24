@@ -65,7 +65,7 @@ public class BotRunner {
             process = Runtime.getRuntime().exec("mvn package");
             process.waitFor();
             if(process.exitValue() == 0) {
-                Runtime.getRuntime().exec("java -jar target/discord-bot*.jar");
+                Runtime.getRuntime().exec("java -jar ./target/discord-bot*.jar");
                 System.exit(0);
             }
         } catch (IOException | InterruptedException e){
