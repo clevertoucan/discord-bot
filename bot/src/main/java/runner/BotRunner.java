@@ -60,9 +60,15 @@ public class BotRunner {
 
     public static void pullAndRestart(){
         try {
-            Process process = Runtime.getRuntime().exec("git pull & mvn package & java -jar target/discord-bot*.jar");
-            System.exit(0);
-        } catch (IOException e){
+            Process process = Runtime.getRuntime().exec("git pull");
+            process.waitFor();
+            process = Runtime.getRuntime().exec("mvn package");
+            process.waitFor();
+            if(process.exitValue() == 0) {
+                Runtime.getRuntime().exec("java -jar target/discord-bot*.jar");
+                System.exit(0);
+            }
+        } catch (IOException | InterruptedException e){
             e.printStackTrace();
         }
     }
