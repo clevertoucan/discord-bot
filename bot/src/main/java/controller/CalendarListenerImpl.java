@@ -513,11 +513,13 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         break;
 
                     case "restart": {
+                        logger.info("Restart requested by " + event.getAuthor().toString());
                         Message m = event.getChannel().sendMessage("Checking for changes").complete();
                         m.editMessage(m.getContentRaw()
                                 + (BotRunner.checkForChanges() ? "\nChanges Found; pulling and rebuilding..."
                                         : "\nNo changes found. Restarting..."))
                         .complete();
+                        logger.info("Rebuilding and restarting");
                         BotRunner.pullAndRestart();
                         break;
                     }
