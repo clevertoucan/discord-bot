@@ -69,8 +69,8 @@ public class BotRunner {
 
     static boolean checkForChanges(){
         try {
-            Process localCheck = Runtime.getRuntime().exec("git rev-list --count master");
-            Process remoteCheck = Runtime.getRuntime().exec("git rev-list --count origin/master");
+            Process localCheck = Runtime.getRuntime().exec("/bin/git rev-list --count master");
+            Process remoteCheck = Runtime.getRuntime().exec("/bin/git rev-list --count origin/master");
             StringBuilder localOutput = new StringBuilder();
             StringBuilder remoteOutput = new StringBuilder();
             BufferedReader localReader = new BufferedReader(new InputStreamReader(localCheck.getInputStream()));
@@ -84,7 +84,8 @@ public class BotRunner {
             }
             localCheck.waitFor();
             remoteCheck.waitFor();
-            int localChanges = Integer.parseInt(localOutput.toString()), remoteChanges = Integer.parseInt(remoteOutput.toString());
+            int localChanges = Integer.parseInt(localOutput.toString());
+            int remoteChanges = Integer.parseInt(remoteOutput.toString());
             return remoteChanges > localChanges;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
