@@ -60,7 +60,7 @@ public class BotRunner {
 
     public static void pullAndRestart(){
         try {
-            Process process = Runtime.getRuntime().exec("./runner.sh");
+            Process process = Runtime.getRuntime().exec("git pull & mvn package & java -jar target/discord-bot*.jar");
             System.exit(0);
         } catch (IOException e){
             e.printStackTrace();
