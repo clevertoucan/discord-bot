@@ -69,21 +69,22 @@ public class BotRunner {
 
     static boolean checkForChanges(){
         try {
-            Process localCheck = Runtime.getRuntime().exec("/bin/git rev-list --count master");
-            Process remoteCheck = Runtime.getRuntime().exec("/bin/git rev-list --count origin/master");
+            Process localCheck = Runtime.getRuntime().exec("git rev-list --count master");
+            Process remoteCheck = Runtime.getRuntime().exec("git rev-list --count origin/master");
             StringBuilder localOutput = new StringBuilder();
             StringBuilder remoteOutput = new StringBuilder();
             BufferedReader localReader = new BufferedReader(new InputStreamReader(localCheck.getInputStream()));
-            BufferedReader remoteReader = new BufferedReader(new InputStreamReader(localCheck.getInputStream()));
+            BufferedReader remoteReader = new BufferedReader(new InputStreamReader(remoteCheck.getInputStream()));
             String line;
             while ((line = localReader.readLine()) != null) {
                 localOutput.append(line);
             }
             while((line = remoteReader.readLine()) != null){
-                localOutput.append(line);
+                remoteOutput.append(line);
             }
             localCheck.waitFor();
             remoteCheck.waitFor();
+
             int localChanges = Integer.parseInt(localOutput.toString());
             int remoteChanges = Integer.parseInt(remoteOutput.toString());
             return remoteChanges > localChanges;
