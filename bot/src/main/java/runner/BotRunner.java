@@ -65,7 +65,7 @@ public class BotRunner {
             process = Runtime.getRuntime().exec("mvn package");
             process.waitFor();
             if(process.exitValue() == 0) {
-                Runtime.getRuntime().exec("java -jar ./target/discord-bot*.jar");
+                process = Runtime.getRuntime().exec("java -jar ./target/discord-bot*.jar");
                 BufferedReader remoteReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 StringBuilder builder = new StringBuilder();
                 String line;
