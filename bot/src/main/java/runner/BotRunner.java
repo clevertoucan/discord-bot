@@ -61,9 +61,10 @@ public class BotRunner {
     public static void pullAndRestart(){
         try {
             Process process = Runtime.getRuntime().exec("chmod 777 ./runner.sh");
+            process.waitFor();
             process = Runtime.getRuntime().exec("./runner.sh");
             System.exit(0);
-        } catch (IOException e){
+        } catch (IOException |InterruptedException e){
             e.printStackTrace();
         }
     }
