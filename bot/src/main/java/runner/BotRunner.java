@@ -21,8 +21,8 @@ import java.util.Date;
 public class BotRunner {
     private static SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-d");
     public static JDA globalJDA;
+    private static Logger logger = LoggerFactory.getLogger("runner.BotRunner");
     public static void main(String[] args){
-        Logger logger = LoggerFactory.getLogger("runner.BotRunner");
 
         try{
             /*
@@ -66,6 +66,14 @@ public class BotRunner {
             process.waitFor();
             if(process.exitValue() == 0) {
                 Runtime.getRuntime().exec("java -jar ./target/discord-bot*.jar");
+                BufferedReader remoteReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                StringBuilder builder = new StringBuilder();
+                String line;
+                while ((line = remoteReader.readLine()) != null) {
+                    builder.append(line).append("\n");
+                }
+                process.waitFor();
+                logger.info(builder.toString());
                 System.exit(0);
             }
         } catch (IOException | InterruptedException e){
