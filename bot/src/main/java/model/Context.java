@@ -19,9 +19,11 @@ public class Context implements Serializable {
     public String commandString, dateFormatString, pingMessageContent, description, location;
     public CalendarEvent event;
     public CalendarEvent[] events;
-    public Boolean rsvpGoing, messageDeleteOn, verbose;
+    public Boolean rsvpGoing, messageDeleteOn, selfMessageDeleteOn, verbose;
     public Date date;
     public long time;
+
+    public boolean readyForDelete = false;
 
     public Context(Signature signature, JDA jda) {
         this.signature = signature;

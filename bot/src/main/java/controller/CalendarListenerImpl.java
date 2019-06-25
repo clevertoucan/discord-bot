@@ -10,6 +10,7 @@ import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import net.dv8tion.jda.core.managers.Presence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import runner.BotRunner;
 
 import java.io.*;
 import java.util.*;
@@ -26,10 +27,12 @@ public class CalendarListenerImpl extends ListenerAdapter {
     private HashMap<Signature, Session> sessions;
     private ArrayList<String> baharQuotes = new ArrayList<>();
     private String ownerID, baharID;
-
+    private int timeout = 10;
     private String dateFormatString;
-    private Boolean cleanup = false, verbose = false;
+    private Boolean cleanup = false, verbose = false, selfCleanup = false;
     private StringBuilder reply = new StringBuilder();
+    private final Object syncObject = new Object();
+    HashMap<Date, Context> deleteQueue = new HashMap<>();
 
     public CalendarListenerImpl(){
         persistence = Persistence.getInstance();
@@ -54,6 +57,11 @@ public class CalendarListenerImpl extends ListenerAdapter {
         if(cleanup == null){
             cleanup = false;
             persistence.addObject("cleanup", cleanup);
+        }
+        selfCleanup = persistence.read(Boolean.class, "selfCleanup");
+        if(selfCleanup == null){
+            selfCleanup = false;
+            persistence.addObject("selfCleanup", selfCleanup);
         }
         verbose = persistence.read(Boolean.class, "verbose");
         if(verbose == null){
@@ -83,6 +91,28 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
         sessions = new HashMap<>();
 
+        new Thread(() -> {
+            while(true) {
+                synchronized (deleteQueue) {
+                    Iterator<Date> i = deleteQueue.keySet().iterator();
+                    while (i.hasNext()) {
+                        Date d = i.next();
+                        if (deleteQueue.get(d).readyForDelete && new Date().getTime() - d.getTime() > timeout * 1000) {
+                            Context c = deleteQueue.get(d);
+                            c.clearMessageHistory();
+                            i.remove();
+                            logger.info("Deleted message context for " + c.getSignature());
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e){
+                    logger.warn("Delete thread interrupted");
+                }
+
+            }
+        }).start();
     }
 
     @Override
@@ -284,6 +314,36 @@ public class CalendarListenerImpl extends ListenerAdapter {
 
                                     break;
 
+                                case "selfcleanup":
+                                    if (args.length < 3) {
+                                        reply.append("Missing `on`/`off`");
+                                    } else {
+                                        if (args[2].equals("on")) {
+                                            List<Permission> permissions = context.getGuild().getMember(event.getJDA().getSelfUser())
+                                                    .getPermissions(context.getChannel());
+                                            for (Permission p : permissions) {
+                                                if (p.equals(Permission.MESSAGE_MANAGE)) {
+                                                    context.selfMessageDeleteOn = true;
+                                                }
+                                            }
+                                            permissions = context.getGuild().getMember(event.getJDA().getSelfUser()).getPermissions();
+                                            for (Permission p : permissions) {
+                                                if (p.equals(Permission.MESSAGE_MANAGE)) {
+                                                    context.selfMessageDeleteOn = true;
+                                                }
+                                            }
+                                            if (context.selfMessageDeleteOn!= null && context.selfMessageDeleteOn) {
+                                                processEvent(context, this::setDeleteSelfMessages);
+                                            } else {
+                                                reply.append("Cannot turn on self cleanup: need `Manage Messages` permission");
+                                            }
+                                        } else if (args[2].equals("off")) {
+                                            context.selfMessageDeleteOn = false;
+                                            processEvent(context, this::setDeleteSelfMessages);
+                                        }
+                                    }
+
+                                    break;
                                 case "verbose":
                                     if(args.length < 3){
                                         reply.append("Missing `on`/`off`");
@@ -452,6 +512,17 @@ public class CalendarListenerImpl extends ListenerAdapter {
                         }
                         break;
 
+                    case "restart": {
+                        logger.info("Restart requested by " + event.getAuthor().toString());
+                        Message m = event.getChannel().sendMessage("Checking for changes").complete();
+                        m.editMessage(m.getContentRaw()
+                                + (BotRunner.checkForChanges() ? "\nChanges Found; pulling and rebuilding..."
+                                        : "\nNo changes found. Restarting..."))
+                        .complete();
+                        logger.info("Rebuilding and restarting");
+                        BotRunner.pullAndRestart();
+                        break;
+                    }
                     case "baharquote":
                         Random rand = new Random();
                         int index = rand.nextInt(baharQuotes.size());
@@ -568,7 +639,9 @@ public class CalendarListenerImpl extends ListenerAdapter {
             if (reply.length() > 0) {
                 Message m = event.getChannel().sendMessage(reply.toString()).complete();
                 context.getMessageHistory().addMessage(m);
-
+                synchronized (deleteQueue) {
+                    deleteQueue.put(new Date(), context);
+                }
                 reply = new StringBuilder();
             }
         }
@@ -583,6 +656,9 @@ public class CalendarListenerImpl extends ListenerAdapter {
         }
         if(cleanup != null && cleanup) {
             c.clearMessageHistory();
+        }
+        if(selfCleanup != null && selfCleanup) {
+            c.readyForDelete = true;
         }
     }
 
@@ -616,6 +692,17 @@ public class CalendarListenerImpl extends ListenerAdapter {
             reply.append("Turned on cleanup\n");
         } else {
             reply.append("Turned off cleanup\n");
+        }
+        return true;
+    }
+
+    private boolean setDeleteSelfMessages(Context c){
+        selfCleanup = c.selfMessageDeleteOn;
+        persistence.addObject("selfcleanup", selfCleanup);
+        if(selfCleanup){
+            reply.append("Turned on self cleanup\n");
+        } else {
+            reply.append("Turned off self cleanup\n");
         }
         return true;
     }
@@ -718,6 +805,11 @@ public class CalendarListenerImpl extends ListenerAdapter {
             reply.append(getFormattedUserList(absentees, guild));
             reply.append("\n");
             reply.append("```\n");
+            String loc = e.getLocation();
+            if(loc != null) {
+                reply.append("Directions: https://www.google.com/maps/search/?api=1&query=");
+                reply.append(loc).append("\n");
+            }
         }
         return true;
     }
@@ -748,7 +840,8 @@ public class CalendarListenerImpl extends ListenerAdapter {
         reply.append("```").append(cmdPrefix).append("create event <name> - creates an event\n\n")
                 .append(cmdPrefix).append("set commandstring <new cmdstring> - sets the command prefix\n\n")
                 .append(cmdPrefix).append("set dateformatstring <new dateFormatString> - sets the date formatting pattern. See Java Date documentation\n\n")
-                .append(cmdPrefix).append("set cleanup <on/off> - when user message deletion is on, the bot will automatically clean up commands from users\n\n")
+                .append(cmdPrefix).append("set cleanup <on/off> - when user message cleanup is on, the bot will automatically delete commands from users after completion\n\n")
+                .append(cmdPrefix).append("set selfcleanup <on/off> - when self message cleanup is on, the bot will automatically delete command results after completeion\n\n")
                 .append(cmdPrefix).append("set verbose <on/off> - when verbose is on, all terminating bot messages will display user request info\n\n")
                 .append(cmdPrefix).append("set event description/location/start/end <\"event name\"> <\"arg\"> - modify various attributes of an event\n\n")
                 .append(cmdPrefix).append("set event ping <\"event name\"> <\"time before event\"> <\"message\"> \n")

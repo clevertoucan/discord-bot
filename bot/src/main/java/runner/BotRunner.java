@@ -32,8 +32,13 @@ public class BotRunner {
                 file.createNewFile();
             }
             */
-            File prefs = new File("apitoken");
-            //File prefs = new File("dev-token");
+            if(checkForChanges()){
+                logger.info("Remote master is ahead of local. Pulling and restarting...");
+                pullAndRestart();
+            }
+            logger.info("Local is caught up with remote");
+            //File prefs = new File("apitoken");
+            File prefs = new File("dev-token");
             if(!prefs.exists()){
                 logger.warn("API Token not found, exiting...");
                 System.exit(-1);
@@ -51,6 +56,44 @@ public class BotRunner {
             logger.error("CRITICAL - Unspecified error", e);
         }
 
+    }
+
+    public static void pullAndRestart(){
+        try {
+            Process process = Runtime.getRuntime().exec("chmod 777 ./runner.sh");
+            process.waitFor();
+            process = Runtime.getRuntime().exec("./runner.sh");
+            System.exit(0);
+        } catch (IOException |InterruptedException e){
+            e.printStackTrace();
+        }
+    }
+
+    public static boolean checkForChanges(){
+        try {
+            Process localCheck = Runtime.getRuntime().exec("git rev-list --count master");
+            Process remoteCheck = Runtime.getRuntime().exec("git rev-list --count origin/master");
+            StringBuilder localOutput = new StringBuilder();
+            StringBuilder remoteOutput = new StringBuilder();
+            BufferedReader localReader = new BufferedReader(new InputStreamReader(localCheck.getInputStream()));
+            BufferedReader remoteReader = new BufferedReader(new InputStreamReader(remoteCheck.getInputStream()));
+            String line;
+            while ((line = localReader.readLine()) != null) {
+                localOutput.append(line);
+            }
+            while((line = remoteReader.readLine()) != null){
+                remoteOutput.append(line);
+            }
+            localCheck.waitFor();
+            remoteCheck.waitFor();
+
+            int localChanges = Integer.parseInt(localOutput.toString());
+            int remoteChanges = Integer.parseInt(remoteOutput.toString());
+            return remoteChanges > localChanges;
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
 }
