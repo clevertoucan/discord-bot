@@ -981,7 +981,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
         } else {
             c.event.rsvpNotGoing(user);
             persistence.addObject("calendar", calendar);
-            reply.append(familiarizeName(c.getGuild(), user)).append("You have successfully anti-rsvp'd for `").append(c.event.getName()).append("`\n");
+            reply.append(familiarizeName(c.getGuild(), user)).append(" has successfully anti-rsvp'd for `").append(c.event.getName()).append("`\n");
             logger.info("User " + user + " has rsvp'd 'not going' for event " + c.event);
         }
         return true;

@@ -21,8 +21,8 @@ import java.util.Date;
 public class BotRunner {
     private static SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-d");
     public static JDA globalJDA;
+    private static Logger logger = LoggerFactory.getLogger("runner.BotRunner");
     public static void main(String[] args){
-        Logger logger = LoggerFactory.getLogger("runner.BotRunner");
 
         try{
             /*
@@ -63,6 +63,7 @@ public class BotRunner {
             Process process = Runtime.getRuntime().exec("chmod 777 ./runner.sh");
             process.waitFor();
             process = Runtime.getRuntime().exec("./runner.sh");
+
             System.exit(0);
         } catch (IOException |InterruptedException e){
             e.printStackTrace();
