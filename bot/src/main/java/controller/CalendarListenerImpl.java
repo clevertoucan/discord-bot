@@ -806,6 +806,7 @@ public class CalendarListenerImpl extends ListenerAdapter {
             reply.append("\n");
             reply.append("```\n");
             String loc = e.getLocation();
+            loc = loc.replace(" ", "+");
             if(loc != null) {
                 reply.append("Directions: https://www.google.com/maps/search/?api=1&query=");
                 reply.append(loc).append("\n");
